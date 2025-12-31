@@ -31,7 +31,7 @@ export const fetchMarketData = async (
 
   // Create base prices for symbols
   const basePrices: Record<string, number> = {
-    '^GSPC': 5000, '^NDX': 18000, '^DJI': 38000,
+    '^GSPC': 5000, '^NDX': 18000, '^DJI': 38000, '^VIX': 15,
     'XLK': 200, 'XLF': 40, 'XLV': 140, 'XLE': 90, 'XLI': 120,
     'XLY': 180, 'XLP': 75, 'XLB': 90, 'XLU': 65, 'XLC': 75, 'XLRE': 40
   };
@@ -43,7 +43,7 @@ export const fetchMarketData = async (
     // Walk backwards from "now" to "start"
     const path = [];
     const volatility = sym.startsWith('^') ? 0.015 : 0.025;
-    const trend = 0.0005; // slight upward bias
+    const trend = sym === '^VIX' ? 0 : 0.0005; // VIX is mean-reverting usually
 
     for (let i = 0; i <= pointsCount; i++) {
       path.push(current);

@@ -6,6 +6,7 @@ export const TICKERS: TickerInfo[] = [
   { symbol: '^GSPC', name: 'S&P 500', category: 'Index', color: '#3b82f6' },
   { symbol: '^NDX', name: 'Nasdaq 100', category: 'Index', color: '#8b5cf6' },
   { symbol: '^DJI', name: 'Dow Jones', category: 'Index', color: '#ef4444' },
+  { symbol: '^VIX', name: 'VIX Volatility', category: 'Index', color: '#f43f5e' },
   // Sectors
   { symbol: 'XLK', name: 'Technology', category: 'Sector', color: '#10b981' },
   { symbol: 'XLF', name: 'Financial', category: 'Sector', color: '#f59e0b' },
