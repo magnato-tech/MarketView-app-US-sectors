@@ -1,13 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+
+import React from 'react';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { MarketDataPoint, SummaryStats, Period, Interval } from '../types';
 import { TICKERS, PERIODS, INTERVALS } from '../constants';
@@ -26,95 +20,35 @@ interface DashboardProps {
   onExitMainFullscreen: () => void;
 }
 
-const MAX_LOCKED_POINTS = 3;
-
-type LockPayloadEntry = { name: string; value: number; color: string };
-
-type LockedPoint = {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  payload: LockPayloadEntry[];
-};
-
-function newLockId(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return `lp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function buildLockPayload(row: MarketDataPoint, symbols: string[]): LockPayloadEntry[] {
-  const entries: LockPayloadEntry[] = [];
-  for (const sym of symbols) {
-    const ticker = TICKERS.find((t) => t.symbol === sym);
-    const v = row[sym];
-    if (ticker == null || typeof v !== 'number') continue;
-    entries.push({ name: ticker.name, value: v, color: ticker.color });
-  }
-  return [...entries].sort((a, b) => b.value - a.value);
-}
-
-function TooltipBody({ label, payload }: { label: string; payload: LockPayloadEntry[] }) {
-  return (
-    <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-lg shadow-2xl text-xs">
-      <p className="font-bold text-slate-300 mb-2 border-b border-slate-800 pb-1">{label}</p>
-      <div className="space-y-1.5">
-        {payload.map((entry, index) => (
-          <div key={`${entry.name}-${index}`} className="flex items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-slate-400">{entry.name}:</span>
-            </div>
-            <span
-              className={`font-mono font-bold ${entry.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
-            >
-              {entry.value > 0 ? '+' : ''}
-              {entry.value}%
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  const entries: LockPayloadEntry[] = [...payload]
-    .filter((e: any) => typeof e?.value === 'number' && Number.isFinite(e.value))
-    .sort((a: any, b: any) => b.value - a.value)
-    .map((e: any) => ({
-      name: String(e.name ?? e.dataKey ?? ''),
-      value: e.value as number,
-      color: e.color ?? e.payload?.stroke ?? '#94a3b8',
-    }));
-  if (entries.length === 0) return null;
-  return <TooltipBody label={String(label ?? '')} payload={entries} />;
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-lg shadow-2xl text-xs">
+        <p className="font-bold text-slate-300 mb-2 border-b border-slate-800 pb-1">{label}</p>
+        <div className="space-y-1.5">
+          {[...payload].sort((a: any, b: any) => b.value - a.value).map((entry: any, index: number) => (
+            <div key={index} className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                <span className="text-slate-400">{entry.name}:</span>
+              </div>
+              <span className={`font-mono font-bold ${entry.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {entry.value > 0 ? '+' : ''}{entry.value}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
 };
 
-const MainDashboard: React.FC<DashboardProps> = ({
-  data,
-  summary,
-  loading,
-  aiInsight,
-  period,
-  onPeriodChange,
-  interval,
-  onIntervalChange,
-  chartLayoutFullscreen,
-  onEnterMainFullscreen,
-  onExitMainFullscreen,
+const MainDashboard: React.FC<DashboardProps> = ({ 
+  data, summary, loading, aiInsight, 
+  period, onPeriodChange, interval, onIntervalChange,
+  chartLayoutFullscreen, onEnterMainFullscreen, onExitMainFullscreen,
 }) => {
-  const [lockedPoints, setLockedPoints] = useState<LockedPoint[]>([]);
-
-  useEffect(() => {
-    setLockedPoints([]);
-  }, [data]);
-
-  const removeLock = useCallback((id: string) => {
-    setLockedPoints((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-slate-950 min-h-[50vh] lg:min-h-0">
@@ -126,52 +60,14 @@ const MainDashboard: React.FC<DashboardProps> = ({
     );
   }
 
-  const activeTickers = summary.map((s) => s.symbol);
-  const chartHasSeries = data.length > 0 && activeTickers.length > 0;
-
-  const handleChartClick = useCallback(
-    (chartState: unknown) => {
-      if (chartState == null || typeof chartState !== 'object') return;
-      const s = chartState as {
-        activeTooltipIndex?: number;
-        activeLabel?: string | number;
-        activeCoordinate?: { x?: number; y?: number };
-      };
-      const idx = s.activeTooltipIndex;
-      if (typeof idx !== 'number' || idx < 0 || idx >= data.length) return;
-      const row = data[idx];
-      if (!row) return;
-      const label = String(s.activeLabel ?? row.timestamp);
-      const coord = s.activeCoordinate;
-      if (coord == null || typeof coord.x !== 'number' || typeof coord.y !== 'number') return;
-
-      setLockedPoints((prev) => {
-        const duplicate = prev.find((p) => p.label === label);
-        if (duplicate) return prev.filter((p) => p.id !== duplicate.id);
-        const payload = buildLockPayload(row, activeTickers);
-        if (payload.length === 0) return prev;
-        const point: LockedPoint = {
-          id: newLockId(),
-          label,
-          x: coord.x,
-          y: coord.y,
-          payload,
-        };
-        const next = [...prev, point];
-        return next.length > MAX_LOCKED_POINTS ? next.slice(-MAX_LOCKED_POINTS) : next;
-      });
-    },
-    [data, activeTickers]
-  );
+  const activeTickers = summary.map(s => s.symbol);
 
   const periodIntervalBar = (
     <div className="bg-slate-900/60 backdrop-blur border border-slate-800 p-2 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 px-4 shadow-inner">
       <div className="flex items-center gap-4 w-full sm:w-auto">
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden lg:block">
-          Tidsperiode:
-        </span>
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden lg:block">Tidsperiode:</span>
         <div className="flex bg-slate-950/50 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
-          {PERIODS.map((p) => (
+          {PERIODS.map(p => (
             <button
               key={p}
               onClick={() => onPeriodChange(p as Period)}
@@ -187,11 +83,9 @@ const MainDashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
       <div className="flex items-center gap-4 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-800 pt-4 sm:pt-0 sm:pl-6">
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden lg:block">
-          Intervall:
-        </span>
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden lg:block">Intervall:</span>
         <div className="flex bg-slate-950/50 p-1 rounded-xl w-full sm:w-auto">
-          {INTERVALS.map((i) => (
+          {INTERVALS.map(i => (
             <button
               key={i}
               onClick={() => onIntervalChange(i as Interval)}
@@ -209,110 +103,50 @@ const MainDashboard: React.FC<DashboardProps> = ({
     </div>
   );
 
-  const renderChartPanel = (sizeClass: string) => {
-    if (!chartHasSeries) {
-      return (
-        <div
-          className={`flex flex-col items-center justify-center gap-2 text-center text-slate-500 text-sm px-4 ${sizeClass}`}
-        >
-          <p>Ingen graf å vise ennå.</p>
-          <p className="text-xs text-slate-600 max-w-md">
-            Kjør <code className="text-slate-400">npm run dev</code> (Yahoo-proxy virker ikke på ren{' '}
-            <code className="text-slate-400">vite preview</code>), eller vent til markedsdata er lastet.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-    <div className={`relative w-full min-h-0 ${sizeClass}`}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} onClick={handleChartClick}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-          <XAxis
-            dataKey="timestamp"
-            stroke="#475569"
-            fontSize={10}
-            tickLine={false}
-            axisLine={false}
-            dy={10}
-            fontFamily="monospace"
+  const lineChart = (
+    <LineChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+      <XAxis
+        dataKey="timestamp"
+        stroke="#475569"
+        fontSize={10}
+        tickLine={false}
+        axisLine={false}
+        dy={10}
+        fontFamily="monospace"
+      />
+      <YAxis
+        stroke="#475569"
+        fontSize={10}
+        tickLine={false}
+        axisLine={false}
+        tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}%`}
+        fontFamily="monospace"
+      />
+      <Tooltip content={<CustomTooltip />} />
+      <Legend
+        wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }}
+        iconType="circle"
+      />
+      {activeTickers.map(sym => {
+        const ticker = TICKERS.find(t => t.symbol === sym);
+        if (!ticker) return null;
+        return (
+          <Line
+            key={sym}
+            type="monotone"
+            dataKey={sym}
+            name={ticker.name}
+            stroke={ticker.color}
+            strokeWidth={sym.startsWith('^') ? 3 : 2}
+            dot={false}
+            activeDot={{ r: 6, strokeWidth: 0 }}
+            animationDuration={1500}
           />
-          <YAxis
-            stroke="#475569"
-            fontSize={10}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(val) => `${Number(val) > 0 ? '+' : ''}${val}%`}
-            fontFamily="monospace"
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend
-            wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }}
-            iconType="circle"
-          />
-          {activeTickers.map((sym) => {
-            const ticker = TICKERS.find((t) => t.symbol === sym);
-            if (!ticker) return null;
-            return (
-              <Line
-                key={sym}
-                type="monotone"
-                dataKey={sym}
-                name={ticker.name}
-                stroke={ticker.color}
-                strokeWidth={sym.startsWith('^') ? 3 : 2}
-                dot={false}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-                animationDuration={1500}
-              />
-            );
-          })}
-        </LineChart>
-      </ResponsiveContainer>
-      {lockedPoints.map((lp, slot) => (
-        <div
-          key={lp.id}
-          className="absolute z-20 pointer-events-none"
-          style={{
-            left: lp.x + slot * 16,
-            top: lp.y,
-            transform: 'translate(-50%, calc(-100% - 10px))',
-          }}
-        >
-          <div
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                removeLock(lp.id);
-              }
-            }}
-            className="pointer-events-auto cursor-pointer relative rounded-lg pr-6 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            onClick={(e) => {
-              e.stopPropagation();
-              removeLock(lp.id);
-            }}
-          >
-            <button
-              type="button"
-              className="absolute top-1.5 right-1 z-10 flex h-5 w-5 items-center justify-center rounded text-sm leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
-              aria-label="Fjern"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeLock(lp.id);
-              }}
-            >
-              ×
-            </button>
-            <TooltipBody label={lp.label} payload={lp.payload} />
-          </div>
-        </div>
-      ))}
-    </div>
-    );
-  };
+        );
+      })}
+    </LineChart>
+  );
 
   if (chartLayoutFullscreen) {
     return (
@@ -321,9 +155,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-lg font-bold text-white">Relativ Avkastning</h3>
-              <p className="text-xs text-slate-500">
-                Fullskjerm — sidefelt til venstre. Klikk graf for å låse opptil {MAX_LOCKED_POINTS} punkter.
-              </p>
+              <p className="text-xs text-slate-500">Fullskjerm — sidefelt til venstre</p>
             </div>
             <button
               type="button"
@@ -339,7 +171,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
           <div className="flex justify-between items-center shrink-0 mb-2 gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex -space-x-2 shrink-0">
-                {summary.slice(0, 5).map((s) => (
+                {summary.slice(0, 5).map(s => (
                   <div
                     key={s.symbol}
                     className="w-5 h-5 rounded-full border-2 border-slate-900 shadow-lg"
@@ -352,7 +184,11 @@ const MainDashboard: React.FC<DashboardProps> = ({
               </span>
             </div>
           </div>
-          <div className="flex-1 min-h-0 w-full min-w-0">{renderChartPanel('h-full')}</div>
+          <div className="flex-1 min-h-0 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              {lineChart}
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     );
@@ -360,212 +196,158 @@ const MainDashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col lg:overflow-hidden">
-      <div className="flex-1 p-4 lg:p-8 bg-slate-950 overflow-y-auto min-h-screen lg:min-h-0 lg:overflow-y-auto">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-extrabold text-white tracking-tight italic">
-                Gemini <span className="text-blue-500 not-italic">AS</span> Terminal
-              </h2>
-              <p className="text-slate-400 text-sm">Avansert portefølje- og sektoranalyse.</p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {summary.slice(0, 4).map((s) => (
-                <div
-                  key={s.symbol}
-                  className="bg-slate-900 border border-slate-800 p-3 rounded-xl min-w-[130px] transition-transform hover:scale-[1.02]"
-                >
-                  <div className="text-[10px] text-slate-500 uppercase font-black mb-1">{s.name}</div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-white">{s.lastPrice.toLocaleString()}</span>
-                    <span
-                      className={`text-[10px] font-bold px-1 rounded ${
-                        s.percentChange >= 0 ? 'text-emerald-400 bg-emerald-400/10' : 'text-rose-400 bg-rose-400/10'
-                      }`}
-                    >
-                      {s.percentChange >= 0 ? '▲' : '▼'} {Math.abs(s.percentChange)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </header>
-
-          {periodIntervalBar}
-
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-10 group-hover:opacity-20 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative bg-slate-900/80 backdrop-blur-xl border border-white/5 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start">
-              <div className="flex flex-col items-center gap-3 shrink-0">
-                <div className="p-3 bg-blue-600/10 rounded-2xl text-blue-400 border border-blue-500/20 shadow-xl">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="28"
-                    height="28"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                  </svg>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Aktiv Analyse</span>
-                </div>
-              </div>
-
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                  <h4 className="text-sm font-black text-white flex items-center gap-2 uppercase tracking-wider">
-                    Gemini AS <span className="text-blue-500">Markedsrapport</span>
-                  </h4>
-                  <span className="text-[10px] text-slate-500 font-bold bg-slate-950 px-2 py-1 rounded">
-                    Periode: {period}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                      <svg
-                        className="w-3 h-3 text-blue-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                      >
-                        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      Markedskommentar
-                    </div>
-                    <p className="text-slate-300 text-sm leading-relaxed font-medium">
-                      {aiInsight ? aiInsight.split('\n')[0] : 'Genererer analyse av nåværende markedssituasjon...'}
-                    </p>
-                  </div>
-                  <div className="space-y-2 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
-                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                      <svg
-                        className="w-3 h-3 text-indigo-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                      >
-                        <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
-                      Utsikter for neste periode
-                    </div>
-                    <p className="text-slate-400 text-sm leading-relaxed italic">
-                      {aiInsight && aiInsight.includes('\n')
-                        ? aiInsight.split('\n').slice(1).join(' ')
-                        : 'Vurderer makroøkonomiske utsikter...'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+    <div className="flex-1 p-4 lg:p-8 bg-slate-950 overflow-y-auto min-h-screen lg:min-h-0 lg:overflow-y-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Header & Stats Cards */}
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-extrabold text-white tracking-tight italic">Gemini <span className="text-blue-500 not-italic">AS</span> Terminal</h2>
+            <p className="text-slate-400 text-sm">Avansert portefølje- og sektoranalyse.</p>
           </div>
-
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
-              <div>
-                <h3 className="text-lg font-bold text-white">Relativ Avkastning</h3>
-                <p className="text-xs text-slate-500">Benchmark-sammenligning (0% ved start)</p>
-                <p className="text-[11px] text-slate-500 mt-1 max-w-xl">
-                  Hover for tooltip. Klikk på grafen for å låse opptil {MAX_LOCKED_POINTS} tidspunkt. Klikk samme
-                  sted igjen, på boksen eller × for å fjerne.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    {summary.slice(0, 3).map((s) => (
-                      <div
-                        key={s.symbol}
-                        className="w-6 h-6 rounded-full border-2 border-slate-900 shadow-lg"
-                        style={{ backgroundColor: s.color }}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                    Valgte instrumenter
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={onEnterMainFullscreen}
-                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700 whitespace-nowrap"
-                >
-                  Fullskjerm graf
-                </button>
-              </div>
-            </div>
-            <div className="h-[450px] w-full min-w-0">{renderChartPanel('h-[450px]')}</div>
+          <div className="flex flex-wrap gap-3">
+             {summary.slice(0, 4).map(s => (
+               <div key={s.symbol} className="bg-slate-900 border border-slate-800 p-3 rounded-xl min-w-[130px] transition-transform hover:scale-[1.02]">
+                 <div className="text-[10px] text-slate-500 uppercase font-black mb-1">{s.name}</div>
+                 <div className="flex items-baseline gap-2">
+                   <span className="text-lg font-bold text-white">{s.lastPrice.toLocaleString()}</span>
+                   <span className={`text-[10px] font-bold px-1 rounded ${s.percentChange >= 0 ? 'text-emerald-400 bg-emerald-400/10' : 'text-rose-400 bg-rose-400/10'}`}>
+                     {s.percentChange >= 0 ? '▲' : '▼'} {Math.abs(s.percentChange)}%
+                   </span>
+                 </div>
+               </div>
+             ))}
           </div>
+        </header>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white">Markedsoversikt</h3>
+        {periodIntervalBar}
+
+        {/* AI Insight Section - Gemini AS Markedsanalytiker */}
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-10 group-hover:opacity-20 transition duration-1000 group-hover:duration-200"></div>
+          <div className="relative bg-slate-900/80 backdrop-blur-xl border border-white/5 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start">
+            <div className="flex flex-col items-center gap-3 shrink-0">
+              <div className="p-3 bg-blue-600/10 rounded-2xl text-blue-400 border border-blue-500/20 shadow-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Aktiv Analyse</span>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead className="bg-slate-950/50 text-slate-500 uppercase text-[10px] font-black tracking-widest">
-                  <tr>
-                    <th className="px-6 py-5">Instrument</th>
-                    <th className="px-6 py-5">Ticker</th>
-                    <th className="px-6 py-5">Siste Kurs</th>
-                    <th className="px-6 py-5">Endring %</th>
-                    <th className="px-6 py-5">Styrke</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {summary.map((s) => (
-                    <tr key={s.symbol} className="hover:bg-slate-800/30 transition-colors group">
-                      <td className="px-6 py-4 font-medium text-slate-200">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-1.5 h-1.5 rounded-full shadow-sm"
-                            style={{ backgroundColor: s.color }}
-                          ></div>
-                          {s.name}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs text-slate-400 group-hover:text-slate-200">
-                        {s.symbol}
-                      </td>
-                      <td className="px-6 py-4 text-slate-300 font-mono font-bold">${s.lastPrice.toLocaleString()}</td>
-                      <td
-                        className={`px-6 py-4 font-mono font-black ${
-                          s.percentChange >= 0 ? 'text-emerald-500' : 'text-rose-500'
-                        }`}
-                      >
-                        {s.percentChange > 0 ? '+' : ''}
-                        {s.percentChange}%
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-800 h-1.5 rounded-full overflow-hidden min-w-[60px] max-w-[100px]">
-                            <div
-                              className={`h-full ${s.percentChange >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                              style={{ width: `${Math.min(100, Math.abs(s.percentChange) * 5)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <h4 className="text-sm font-black text-white flex items-center gap-2 uppercase tracking-wider">
+                  Gemini AS <span className="text-blue-500">Markedsrapport</span>
+                </h4>
+                <span className="text-[10px] text-slate-500 font-bold bg-slate-950 px-2 py-1 rounded">Periode: {period}</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    Markedskommentar
+                  </div>
+                  <p className="text-slate-300 text-sm leading-relaxed font-medium">
+                    {aiInsight ? aiInsight.split('\n')[0] : "Genererer analyse av nåværende markedssituasjon..."}
+                  </p>
+                </div>
+                <div className="space-y-2 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <svg className="w-3 h-3 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    Utsikter for neste periode
+                  </div>
+                  <p className="text-slate-400 text-sm leading-relaxed italic">
+                    {aiInsight && aiInsight.includes('\n') ? aiInsight.split('\n').slice(1).join(' ') : "Vurderer makroøkonomiske utsikter..."}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Main Chart */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
+            <div>
+              <h3 className="text-lg font-bold text-white">Relativ Avkastning</h3>
+              <p className="text-xs text-slate-500">Benchmark-sammenligning (0% ved start)</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {summary.slice(0, 3).map(s => (
+                    <div key={s.symbol} className="w-6 h-6 rounded-full border-2 border-slate-900 shadow-lg" style={{ backgroundColor: s.color }}></div>
+                  ))}
+                </div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Valgte instrumenter</span>
+              </div>
+              <button
+                type="button"
+                onClick={onEnterMainFullscreen}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700 whitespace-nowrap"
+              >
+                Fullskjerm graf
+              </button>
+            </div>
+          </div>
+          <div className="h-[450px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              {lineChart}
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Summary Table */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-white">Markedsoversikt</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="bg-slate-950/50 text-slate-500 uppercase text-[10px] font-black tracking-widest">
+                <tr>
+                  <th className="px-6 py-5">Instrument</th>
+                  <th className="px-6 py-5">Ticker</th>
+                  <th className="px-6 py-5">Siste Kurs</th>
+                  <th className="px-6 py-5">Endring %</th>
+                  <th className="px-6 py-5">Styrke</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {summary.map((s) => (
+                  <tr key={s.symbol} className="hover:bg-slate-800/30 transition-colors group">
+                    <td className="px-6 py-4 font-medium text-slate-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full shadow-sm" style={{ backgroundColor: s.color }}></div>
+                        {s.name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-mono text-xs text-slate-400 group-hover:text-slate-200">{s.symbol}</td>
+                    <td className="px-6 py-4 text-slate-300 font-mono font-bold">${s.lastPrice.toLocaleString()}</td>
+                    <td className={`px-6 py-4 font-mono font-black ${s.percentChange >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {s.percentChange > 0 ? '+' : ''}{s.percentChange}%
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-slate-800 h-1.5 rounded-full overflow-hidden min-w-[60px] max-w-[100px]">
+                           <div 
+                             className={`h-full ${s.percentChange >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} 
+                             style={{ width: `${Math.min(100, Math.abs(s.percentChange) * 5)}%` }}
+                           ></div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
+    </div>
     </div>
   );
 };
