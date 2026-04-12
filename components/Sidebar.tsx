@@ -15,7 +15,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const sectors = TICKERS.filter(t => t.category === 'Sector');
 
   return (
-    <div className="w-full lg:w-72 bg-slate-900 border-r border-slate-800 p-6 flex flex-col gap-8 overflow-y-auto h-screen lg:sticky top-0 shadow-2xl">
+    <div className="w-full lg:w-72 shrink-0 bg-slate-900 border-r border-slate-800 p-6 flex flex-col gap-8 overflow-y-auto max-h-[45vh] lg:max-h-none lg:h-full lg:min-h-0 shadow-2xl">
       <div className="flex items-center gap-2 mb-2">
         <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-blue-900/40">M</div>
         <h1 className="text-xl font-bold tracking-tight">MarketView <span className="text-blue-500 italic">Pro</span></h1>

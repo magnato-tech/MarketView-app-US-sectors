@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, Period, Interval } from './types';
 import Sidebar from './components/Sidebar';
 import MainDashboard from './components/MainDashboard';
@@ -6,6 +6,15 @@ import { fetchMarketData } from './services/marketDataService';
 import { getMarketInsights } from './services/geminiService';
 
 const App: React.FC = () => {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [mainFullscreen, setMainFullscreen] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setMainFullscreen(document.fullscreenElement === rootRef.current);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
   const [state, setState] = useState<AppState>({
     selectedTickers: ['^GSPC', '^NDX', '^VIX', 'XLK', 'XLF'],
     period: '6mo',
@@ -60,7 +69,10 @@ const App: React.FC = () => {
   const handleIntervalChange = (interval: Interval) => setState(prev => ({ ...prev, interval }));
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-950 text-slate-200">
+    <div
+      ref={rootRef}
+      className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden bg-slate-950 text-slate-200"
+    >
       <Sidebar
         selectedTickers={state.selectedTickers}
         onTickerToggle={handleTickerToggle}
@@ -74,6 +86,9 @@ const App: React.FC = () => {
         onPeriodChange={handlePeriodChange}
         interval={state.interval}
         onIntervalChange={handleIntervalChange}
+        chartLayoutFullscreen={mainFullscreen}
+        onEnterMainFullscreen={() => rootRef.current?.requestFullscreen?.()}
+        onExitMainFullscreen={() => document.exitFullscreen?.()}
       />
     </div>
   );

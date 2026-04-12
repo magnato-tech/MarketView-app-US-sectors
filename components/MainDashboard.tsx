@@ -15,6 +15,9 @@ interface DashboardProps {
   onPeriodChange: (p: Period) => void;
   interval: Interval;
   onIntervalChange: (i: Interval) => void;
+  chartLayoutFullscreen: boolean;
+  onEnterMainFullscreen: () => void;
+  onExitMainFullscreen: () => void;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -43,11 +46,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const MainDashboard: React.FC<DashboardProps> = ({ 
   data, summary, loading, aiInsight, 
-  period, onPeriodChange, interval, onIntervalChange 
+  period, onPeriodChange, interval, onIntervalChange,
+  chartLayoutFullscreen, onEnterMainFullscreen, onExitMainFullscreen,
 }) => {
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-950">
+      <div className="flex-1 flex items-center justify-center bg-slate-950 min-h-[50vh] lg:min-h-0">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
           <p className="text-slate-400 font-medium animate-pulse">Analyserer Markedsdata...</p>
@@ -58,8 +62,141 @@ const MainDashboard: React.FC<DashboardProps> = ({
 
   const activeTickers = summary.map(s => s.symbol);
 
+  const periodIntervalBar = (
+    <div className="bg-slate-900/60 backdrop-blur border border-slate-800 p-2 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 px-4 shadow-inner">
+      <div className="flex items-center gap-4 w-full sm:w-auto">
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden lg:block">Tidsperiode:</span>
+        <div className="flex bg-slate-950/50 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
+          {PERIODS.map(p => (
+            <button
+              key={p}
+              onClick={() => onPeriodChange(p as Period)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                period === p
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-4 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-800 pt-4 sm:pt-0 sm:pl-6">
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden lg:block">Intervall:</span>
+        <div className="flex bg-slate-950/50 p-1 rounded-xl w-full sm:w-auto">
+          {INTERVALS.map(i => (
+            <button
+              key={i}
+              onClick={() => onIntervalChange(i as Interval)}
+              className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                interval === i
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              {i}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const lineChart = (
+    <LineChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+      <XAxis
+        dataKey="timestamp"
+        stroke="#475569"
+        fontSize={10}
+        tickLine={false}
+        axisLine={false}
+        dy={10}
+        fontFamily="monospace"
+      />
+      <YAxis
+        stroke="#475569"
+        fontSize={10}
+        tickLine={false}
+        axisLine={false}
+        tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}%`}
+        fontFamily="monospace"
+      />
+      <Tooltip content={<CustomTooltip />} />
+      <Legend
+        wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }}
+        iconType="circle"
+      />
+      {activeTickers.map(sym => {
+        const ticker = TICKERS.find(t => t.symbol === sym);
+        if (!ticker) return null;
+        return (
+          <Line
+            key={sym}
+            type="monotone"
+            dataKey={sym}
+            name={ticker.name}
+            stroke={ticker.color}
+            strokeWidth={sym.startsWith('^') ? 3 : 2}
+            dot={false}
+            activeDot={{ r: 6, strokeWidth: 0 }}
+            animationDuration={1500}
+          />
+        );
+      })}
+    </LineChart>
+  );
+
+  if (chartLayoutFullscreen) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-slate-950 p-3 lg:p-4 overflow-hidden">
+        <div className="shrink-0 flex flex-col gap-3 mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-lg font-bold text-white">Relativ Avkastning</h3>
+              <p className="text-xs text-slate-500">Fullskjerm — sidefelt til venstre</p>
+            </div>
+            <button
+              type="button"
+              onClick={onExitMainFullscreen}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700"
+            >
+              Avslutt fullskjerm
+            </button>
+          </div>
+          {periodIntervalBar}
+        </div>
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl overflow-hidden">
+          <div className="flex justify-between items-center shrink-0 mb-2 gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex -space-x-2 shrink-0">
+                {summary.slice(0, 5).map(s => (
+                  <div
+                    key={s.symbol}
+                    className="w-5 h-5 rounded-full border-2 border-slate-900 shadow-lg"
+                    style={{ backgroundColor: s.color }}
+                  />
+                ))}
+              </div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">
+                Valgte instrumenter
+              </span>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              {lineChart}
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 p-4 lg:p-8 bg-slate-950 overflow-y-auto min-h-screen">
+    <div className="flex-1 min-h-0 flex flex-col lg:overflow-hidden">
+    <div className="flex-1 p-4 lg:p-8 bg-slate-950 overflow-y-auto min-h-screen lg:min-h-0 lg:overflow-y-auto">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header & Stats Cards */}
@@ -83,46 +220,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
           </div>
         </header>
 
-        {/* Top Control Bar */}
-        <div className="bg-slate-900/60 backdrop-blur border border-slate-800 p-2 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 px-4 shadow-inner">
-           <div className="flex items-center gap-4 w-full sm:w-auto">
-             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden lg:block">Tidsperiode:</span>
-             <div className="flex bg-slate-950/50 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
-               {PERIODS.map(p => (
-                 <button
-                   key={p}
-                   onClick={() => onPeriodChange(p as Period)}
-                   className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-                     period === p 
-                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
-                       : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                   }`}
-                 >
-                   {p}
-                 </button>
-               ))}
-             </div>
-           </div>
-
-           <div className="flex items-center gap-4 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-800 pt-4 sm:pt-0 sm:pl-6">
-             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden lg:block">Intervall:</span>
-             <div className="flex bg-slate-950/50 p-1 rounded-xl w-full sm:w-auto">
-               {INTERVALS.map(i => (
-                 <button
-                   key={i}
-                   onClick={() => onIntervalChange(i as Interval)}
-                   className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                     interval === i 
-                       ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' 
-                       : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                   }`}
-                 >
-                   {i}
-                 </button>
-               ))}
-             </div>
-           </div>
-        </div>
+        {periodIntervalBar}
 
         {/* AI Insight Section - Gemini AS Markedsanalytiker */}
         <div className="relative group">
@@ -172,64 +270,32 @@ const MainDashboard: React.FC<DashboardProps> = ({
 
         {/* Main Chart */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
             <div>
               <h3 className="text-lg font-bold text-white">Relativ Avkastning</h3>
               <p className="text-xs text-slate-500">Benchmark-sammenligning (0% ved start)</p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                 {summary.slice(0, 3).map(s => (
-                   <div key={s.symbol} className="w-6 h-6 rounded-full border-2 border-slate-900 shadow-lg" style={{ backgroundColor: s.color }}></div>
-                 ))}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {summary.slice(0, 3).map(s => (
+                    <div key={s.symbol} className="w-6 h-6 rounded-full border-2 border-slate-900 shadow-lg" style={{ backgroundColor: s.color }}></div>
+                  ))}
+                </div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Valgte instrumenter</span>
               </div>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-2">Valgte instrumenter</span>
+              <button
+                type="button"
+                onClick={onEnterMainFullscreen}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700 whitespace-nowrap"
+              >
+                Fullskjerm graf
+              </button>
             </div>
           </div>
           <div className="h-[450px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis 
-                  dataKey="timestamp" 
-                  stroke="#475569" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  axisLine={false}
-                  dy={10}
-                  fontFamily="monospace"
-                />
-                <YAxis 
-                  stroke="#475569" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}%`}
-                  fontFamily="monospace"
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }} 
-                  iconType="circle"
-                />
-                {activeTickers.map(sym => {
-                  const ticker = TICKERS.find(t => t.symbol === sym);
-                  if (!ticker) return null;
-                  return (
-                    <Line
-                      key={sym}
-                      type="monotone"
-                      dataKey={sym}
-                      name={ticker.name}
-                      stroke={ticker.color}
-                      strokeWidth={sym.startsWith('^') ? 3 : 2}
-                      dot={false}
-                      activeDot={{ r: 6, strokeWidth: 0 }}
-                      animationDuration={1500}
-                    />
-                  );
-                })}
-              </LineChart>
+              {lineChart}
             </ResponsiveContainer>
           </div>
         </div>
@@ -281,6 +347,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };
