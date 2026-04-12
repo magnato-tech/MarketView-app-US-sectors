@@ -75,17 +75,17 @@ export const fetchMarketData = async (
 
   // Create Summary Stats (based on absolute prices for the table)
   const summary: SummaryStats[] = symbols.map(sym => {
-    const ticker = TICKERS.find(t => t.symbol === sym)!;
+    const ticker = TICKERS.find(t => t.symbol === sym);
     const lastPriceRaw = symbolPaths[sym][symbolPaths[sym].length - 1];
     const firstPriceRaw = symbolPaths[sym][0];
     const pctChange = ((lastPriceRaw - firstPriceRaw) / firstPriceRaw) * 100;
     
     return {
       symbol: sym,
-      name: ticker.name,
+      name: ticker?.name ?? sym,
       lastPrice: parseFloat(lastPriceRaw.toFixed(2)),
       percentChange: parseFloat(pctChange.toFixed(2)),
-      color: ticker.color
+      color: ticker?.color ?? '#64748b',
     };
   });
 

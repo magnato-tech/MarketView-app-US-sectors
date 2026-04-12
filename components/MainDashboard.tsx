@@ -213,7 +213,8 @@ const MainDashboard: React.FC<DashboardProps> = ({
                   iconType="circle"
                 />
                 {activeTickers.map(sym => {
-                  const ticker = TICKERS.find(t => t.symbol === sym)!;
+                  const ticker = TICKERS.find(t => t.symbol === sym);
+                  if (!ticker) return null;
                   return (
                     <Line
                       key={sym}
