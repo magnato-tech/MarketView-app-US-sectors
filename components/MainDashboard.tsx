@@ -23,7 +23,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-lg shadow-2xl text-xs">
         <p className="font-bold text-slate-300 mb-2 border-b border-slate-800 pb-1">{label}</p>
         <div className="space-y-1.5">
-          {payload.sort((a: any, b: any) => b.value - a.value).map((entry: any, index: number) => (
+          {[...payload].sort((a: any, b: any) => b.value - a.value).map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }}></div>

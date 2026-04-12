@@ -4,7 +4,11 @@ import { SummaryStats, Period } from "../types";
 
 export const getMarketInsights = async (summary: SummaryStats[], period: Period): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!apiKey) {
+      return "Legg til GEMINI_API_KEY i .env for å aktivere AI-markedsrapport.";
+    }
+    const ai = new GoogleGenAI({ apiKey });
     
     const context = summary.map(s => `${s.name} (${s.symbol}): ${s.percentChange}% endring`).join(', ');
     
