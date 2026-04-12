@@ -1,93 +1,82 @@
-
 import { MarketDataPoint, SummaryStats, Period, Interval } from '../types';
 import { TICKERS } from '../constants';
 
-/**
- * Generates mock market data. 
- * In a production app, this would be an async fetch to a backend proxying yfinance or Alpaca.
- */
+const periodMap: Record<Period, string> = {
+  '1d': '1d',
+  '5d': '5d',
+  '1mo': '1mo',
+  '2mo': '2mo',
+  '3mo': '3mo',
+  '6mo': '6mo',
+  '1y': '1y',
+  '2y': '2y'
+};
+
+const intervalMap: Record<Interval, string> = {
+  '1d': '1d',
+  '1wk': '1wk',
+  '1mo': '1mo'
+};
+
 export const fetchMarketData = async (
   symbols: string[],
   period: Period,
   interval: Interval
 ): Promise<{ data: MarketDataPoint[]; summary: SummaryStats[] }> => {
-  // Simulate network latency
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  try {
+    const responses = await Promise.all(
+      symbols.map(symbol =>
+        fetch(`/api/yahoo/v8/finance/chart/${symbol}?period1=0&period2=9999999999&interval=${intervalMap[interval]}&range=${periodMap[period]}`)
+          .then(response => response.json())
+      )
+    );
 
-  const daysMap: Record<Period, number> = {
-    '1d': 1, '5d': 5, '1mo': 30, '2mo': 60, '3mo': 90, '6mo': 180, '1y': 365, '2y': 730
-  };
-  
-  const stepMap: Record<Interval, number> = {
-    '1d': 1, '1wk': 7, '1mo': 30
-  };
+    const data: MarketDataPoint[] = [];
+    const summary: SummaryStats[] = [];
 
-  const totalDays = daysMap[period];
-  const stepDays = stepMap[interval];
-  const pointsCount = Math.ceil(totalDays / stepDays);
-  
-  const data: MarketDataPoint[] = [];
-  const now = new Date();
+    symbols.forEach((symbol, index) => {
+      const result = responses[index];
+      if (!result.quoteResponse || !result.quoteResponse.result || result.quoteResponse.result.length === 0) {
+        return;
+      }
 
-  // Create base prices for symbols
-  const basePrices: Record<string, number> = {
-    '^GSPC': 5000, '^NDX': 18000, '^DJI': 38000, '^VIX': 15,
-    'XLK': 200, 'XLF': 40, 'XLV': 140, 'XLE': 90, 'XLI': 120,
-    'XLY': 180, 'XLP': 75, 'XLB': 90, 'XLU': 65, 'XLC': 75, 'XLRE': 40
-  };
+      const quote = result.quoteResponse.result[0];
+      const historicalData = result.chart.result[0].indicators.quote[0];
 
-  // Generate path data
-  const symbolPaths: Record<string, number[]> = {};
-  symbols.forEach(sym => {
-    let current = basePrices[sym] || 100;
-    // Walk backwards from "now" to "start"
-    const path = [];
-    const volatility = sym.startsWith('^') ? 0.015 : 0.025;
-    const trend = sym === '^VIX' ? 0 : 0.0005; // VIX is mean-reverting usually
+      const firstClose = historicalData.close[0];
+      const lastClose = historicalData.close[historicalData.close.length - 1];
+      const percentChange = ((lastClose - firstClose) / firstClose) * 100;
 
-    for (let i = 0; i <= pointsCount; i++) {
-      path.push(current);
-      const change = current * (volatility * (Math.random() - 0.5) + trend);
-      current -= change; // going backwards
-    }
-    symbolPaths[sym] = path.reverse();
-  });
+      summary.push({
+        symbol,
+        name: quote.longName || symbol,
+        lastPrice: lastClose,
+        percentChange: parseFloat(percentChange.toFixed(2)),
+        color: TICKERS.find(t => t.symbol === symbol)?.color ?? '#64748b'
+      });
 
-  // Assemble into MarketDataPoints and calculate Relative Performance
-  for (let i = 0; i <= pointsCount; i++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - (pointsCount - i) * stepDays);
-    
-    const point: MarketDataPoint = {
-      timestamp: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
-    };
+      const timestamps = new Set<string>();
+      historicalData.timestamp.forEach(ts => timestamps.add(new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })));
 
-    symbols.forEach(sym => {
-      // For the chart, we want cumulative % change from the first point (i=0)
-      const initialPrice = symbolPaths[sym][0];
-      const currentPrice = symbolPaths[sym][i];
-      const relPerf = ((currentPrice - initialPrice) / initialPrice) * 100;
-      point[sym] = parseFloat(relPerf.toFixed(2));
+      timestamps.forEach(timestamp => {
+        const point: MarketDataPoint = { timestamp };
+        symbols.forEach(sym => {
+          const symbolData = responses.find(res => res.quoteResponse.result[0].symbol === sym);
+          if (symbolData && symbolData.chart.result[0].indicators.quote[0]) {
+            const quoteData = symbolData.chart.result[0].indicators.quote[0];
+            const index = quoteData.timestamp.indexOf(timestamp);
+            point[sym] = index !== -1 ? parseFloat(quoteData.close[index].toFixed(2)) : null;
+          } else {
+            point[sym] = null;
+          }
+        });
+        data.push(point);
+      });
     });
 
-    data.push(point);
+    return { data, summary };
+  } catch (error) {
+    console.error("Failed to fetch market data", error);
+    return { data: [], summary: [] };
   }
-
-  // Create Summary Stats (based on absolute prices for the table)
-  const summary: SummaryStats[] = symbols.map(sym => {
-    const ticker = TICKERS.find(t => t.symbol === sym);
-    const lastPriceRaw = symbolPaths[sym][symbolPaths[sym].length - 1];
-    const firstPriceRaw = symbolPaths[sym][0];
-    const pctChange = ((lastPriceRaw - firstPriceRaw) / firstPriceRaw) * 100;
-    
-    return {
-      symbol: sym,
-      name: ticker?.name ?? sym,
-      lastPrice: parseFloat(lastPriceRaw.toFixed(2)),
-      percentChange: parseFloat(pctChange.toFixed(2)),
-      color: ticker?.color ?? '#64748b',
-    };
-  });
-
-  return { data, summary };
 };
