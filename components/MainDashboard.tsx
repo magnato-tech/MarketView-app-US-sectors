@@ -79,17 +79,17 @@ function TooltipBody({ label, payload }: { label: string; payload: LockPayloadEn
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const entries: LockPayloadEntry[] = [...payload]
-      .sort((a: any, b: any) => b.value - a.value)
-      .map((e: any) => ({
-        name: e.name,
-        value: e.value,
-        color: e.color ?? e.payload?.stroke ?? '#94a3b8',
-      }));
-    return <TooltipBody label={label} payload={entries} />;
-  }
-  return null;
+  if (!active || !payload?.length) return null;
+  const entries: LockPayloadEntry[] = [...payload]
+    .filter((e: any) => typeof e?.value === 'number' && Number.isFinite(e.value))
+    .sort((a: any, b: any) => b.value - a.value)
+    .map((e: any) => ({
+      name: String(e.name ?? e.dataKey ?? ''),
+      value: e.value as number,
+      color: e.color ?? e.payload?.stroke ?? '#94a3b8',
+    }));
+  if (entries.length === 0) return null;
+  return <TooltipBody label={String(label ?? '')} payload={entries} />;
 };
 
 const MainDashboard: React.FC<DashboardProps> = ({
@@ -127,19 +127,22 @@ const MainDashboard: React.FC<DashboardProps> = ({
   }
 
   const activeTickers = summary.map((s) => s.symbol);
+  const chartHasSeries = data.length > 0 && activeTickers.length > 0;
 
   const handleChartClick = useCallback(
-    (chartState: {
-      activeTooltipIndex?: number;
-      activeLabel?: string | number;
-      activeCoordinate?: { x?: number; y?: number };
-    }) => {
-      const idx = chartState.activeTooltipIndex;
+    (chartState: unknown) => {
+      if (chartState == null || typeof chartState !== 'object') return;
+      const s = chartState as {
+        activeTooltipIndex?: number;
+        activeLabel?: string | number;
+        activeCoordinate?: { x?: number; y?: number };
+      };
+      const idx = s.activeTooltipIndex;
       if (typeof idx !== 'number' || idx < 0 || idx >= data.length) return;
       const row = data[idx];
       if (!row) return;
-      const label = String(chartState.activeLabel ?? row.timestamp);
-      const coord = chartState.activeCoordinate;
+      const label = String(s.activeLabel ?? row.timestamp);
+      const coord = s.activeCoordinate;
       if (coord == null || typeof coord.x !== 'number' || typeof coord.y !== 'number') return;
 
       setLockedPoints((prev) => {
@@ -206,7 +209,22 @@ const MainDashboard: React.FC<DashboardProps> = ({
     </div>
   );
 
-  const renderChartPanel = (sizeClass: string) => (
+  const renderChartPanel = (sizeClass: string) => {
+    if (!chartHasSeries) {
+      return (
+        <div
+          className={`flex flex-col items-center justify-center gap-2 text-center text-slate-500 text-sm px-4 ${sizeClass}`}
+        >
+          <p>Ingen graf å vise ennå.</p>
+          <p className="text-xs text-slate-600 max-w-md">
+            Kjør <code className="text-slate-400">npm run dev</code> (Yahoo-proxy virker ikke på ren{' '}
+            <code className="text-slate-400">vite preview</code>), eller vent til markedsdata er lastet.
+          </p>
+        </div>
+      );
+    }
+
+    return (
     <div className={`relative w-full min-h-0 ${sizeClass}`}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} onClick={handleChartClick}>
@@ -225,7 +243,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
             fontSize={10}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}%`}
+            tickFormatter={(val) => `${Number(val) > 0 ? '+' : ''}${val}%`}
             fontFamily="monospace"
           />
           <Tooltip content={<CustomTooltip />} />
@@ -293,7 +311,8 @@ const MainDashboard: React.FC<DashboardProps> = ({
         </div>
       ))}
     </div>
-  );
+    );
+  };
 
   if (chartLayoutFullscreen) {
     return (
