@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppState, Period, Interval } from './types';
 import Sidebar from './components/Sidebar';
