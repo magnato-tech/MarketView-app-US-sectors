@@ -1,10 +1,83 @@
 
-import React from 'react';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from 'recharts';
 import { MarketDataPoint, SummaryStats, Period, Interval } from '../types';
 import { TICKERS, PERIODS, INTERVALS } from '../constants';
+
+const MAX_LOCKED_POINTS = 3;
+
+type LockPayloadEntry = { name: string; value: number; color: string };
+
+export type LockedPoint = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  payload: LockPayloadEntry[];
+};
+
+function newLockId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `lp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function buildLockPayload(row: MarketDataPoint, symbols: string[]): LockPayloadEntry[] {
+  const entries: LockPayloadEntry[] = [];
+  for (const sym of symbols) {
+    const ticker = TICKERS.find((t) => t.symbol === sym);
+    const v = row[sym];
+    if (ticker == null || typeof v !== 'number') continue;
+    entries.push({ name: ticker.name, value: v, color: ticker.color });
+  }
+  return [...entries].sort((a, b) => b.value - a.value);
+}
+
+function TooltipBody({ label, payload }: { label: string; payload: LockPayloadEntry[] }) {
+  return (
+    <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-lg shadow-2xl text-xs">
+      <p className="font-bold text-slate-300 mb-2 border-b border-slate-800 pb-1">{label}</p>
+      <div className="space-y-1.5">
+        {payload.map((entry, index) => (
+          <div key={`${entry.name}-${index}`} className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="text-slate-400">{entry.name}:</span>
+            </div>
+            <span
+              className={`font-mono font-bold ${entry.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+            >
+              {entry.value > 0 ? '+' : ''}
+              {entry.value}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const entries: LockPayloadEntry[] = [...payload]
+      .sort((a: any, b: any) => b.value - a.value)
+      .map((e: any) => ({
+        name: e.name,
+        value: e.value,
+        color: e.color ?? e.payload?.stroke ?? '#94a3b8',
+      }));
+    return <TooltipBody label={label} payload={entries} />;
+  }
+  return null;
+};
 
 interface DashboardProps {
   data: MarketDataPoint[];
@@ -20,35 +93,21 @@ interface DashboardProps {
   onExitMainFullscreen: () => void;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-lg shadow-2xl text-xs">
-        <p className="font-bold text-slate-300 mb-2 border-b border-slate-800 pb-1">{label}</p>
-        <div className="space-y-1.5">
-          {[...payload].sort((a: any, b: any) => b.value - a.value).map((entry: any, index: number) => (
-            <div key={index} className="flex items-center justify-between gap-6">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                <span className="text-slate-400">{entry.name}:</span>
-              </div>
-              <span className={`font-mono font-bold ${entry.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {entry.value > 0 ? '+' : ''}{entry.value}%
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
-
 const MainDashboard: React.FC<DashboardProps> = ({ 
   data, summary, loading, aiInsight, 
   period, onPeriodChange, interval, onIntervalChange,
   chartLayoutFullscreen, onEnterMainFullscreen, onExitMainFullscreen,
 }) => {
+  const [lockedPoints, setLockedPoints] = useState<LockedPoint[]>([]);
+
+  useEffect(() => {
+    setLockedPoints([]);
+  }, [data]);
+
+  const removeLock = useCallback((id: string) => {
+    setLockedPoints((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-slate-950 min-h-[50vh] lg:min-h-0">
@@ -61,6 +120,39 @@ const MainDashboard: React.FC<DashboardProps> = ({
   }
 
   const activeTickers = summary.map(s => s.symbol);
+
+  const handleChartClick = useCallback(
+    (chartState: {
+      activeTooltipIndex?: number;
+      activeLabel?: string | number;
+      activeCoordinate?: { x?: number; y?: number };
+    }) => {
+      const idx = chartState.activeTooltipIndex;
+      if (typeof idx !== 'number' || idx < 0 || idx >= data.length) return;
+      const row = data[idx];
+      if (!row) return;
+      const label = String(chartState.activeLabel ?? row.timestamp);
+      const coord = chartState.activeCoordinate;
+      if (coord == null || typeof coord.x !== 'number' || typeof coord.y !== 'number') return;
+
+      setLockedPoints((prev) => {
+        const duplicate = prev.find((p) => p.label === label);
+        if (duplicate) return prev.filter((p) => p.id !== duplicate.id);
+        const payload = buildLockPayload(row, activeTickers);
+        if (payload.length === 0) return prev;
+        const point: LockedPoint = {
+          id: newLockId(),
+          label,
+          x: coord.x,
+          y: coord.y,
+          payload,
+        };
+        const next = [...prev, point];
+        return next.length > MAX_LOCKED_POINTS ? next.slice(-MAX_LOCKED_POINTS) : next;
+      });
+    },
+    [data, activeTickers]
+  );
 
   const periodIntervalBar = (
     <div className="bg-slate-900/60 backdrop-blur border border-slate-800 p-2 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 px-4 shadow-inner">
@@ -103,49 +195,93 @@ const MainDashboard: React.FC<DashboardProps> = ({
     </div>
   );
 
-  const lineChart = (
-    <LineChart data={data}>
-      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-      <XAxis
-        dataKey="timestamp"
-        stroke="#475569"
-        fontSize={10}
-        tickLine={false}
-        axisLine={false}
-        dy={10}
-        fontFamily="monospace"
-      />
-      <YAxis
-        stroke="#475569"
-        fontSize={10}
-        tickLine={false}
-        axisLine={false}
-        tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}%`}
-        fontFamily="monospace"
-      />
-      <Tooltip content={<CustomTooltip />} />
-      <Legend
-        wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }}
-        iconType="circle"
-      />
-      {activeTickers.map(sym => {
-        const ticker = TICKERS.find(t => t.symbol === sym);
-        if (!ticker) return null;
-        return (
-          <Line
-            key={sym}
-            type="monotone"
-            dataKey={sym}
-            name={ticker.name}
-            stroke={ticker.color}
-            strokeWidth={sym.startsWith('^') ? 3 : 2}
-            dot={false}
-            activeDot={{ r: 6, strokeWidth: 0 }}
-            animationDuration={1500}
+  const renderChartPanel = (sizeClass: string) => (
+    <div className={`relative w-full min-h-0 ${sizeClass}`}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} onClick={handleChartClick}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+          <XAxis
+            dataKey="timestamp"
+            stroke="#475569"
+            fontSize={10}
+            tickLine={false}
+            axisLine={false}
+            dy={10}
+            fontFamily="monospace"
           />
-        );
-      })}
-    </LineChart>
+          <YAxis
+            stroke="#475569"
+            fontSize={10}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}%`}
+            fontFamily="monospace"
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend
+            wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }}
+            iconType="circle"
+          />
+          {activeTickers.map((sym) => {
+            const ticker = TICKERS.find((t) => t.symbol === sym);
+            if (!ticker) return null;
+            return (
+              <Line
+                key={sym}
+                type="monotone"
+                dataKey={sym}
+                name={ticker.name}
+                stroke={ticker.color}
+                strokeWidth={sym.startsWith('^') ? 3 : 2}
+                dot={false}
+                activeDot={{ r: 6, strokeWidth: 0 }}
+                animationDuration={1500}
+              />
+            );
+          })}
+        </LineChart>
+      </ResponsiveContainer>
+      {lockedPoints.map((lp, slot) => (
+        <div
+          key={lp.id}
+          className="absolute z-20 pointer-events-none"
+          style={{
+            left: lp.x + slot * 16,
+            top: lp.y,
+            transform: 'translate(-50%, calc(-100% - 10px))',
+          }}
+        >
+          <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                removeLock(lp.id);
+              }
+            }}
+            className="pointer-events-auto cursor-pointer relative rounded-lg pr-6 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeLock(lp.id);
+            }}
+          >
+            <button
+              type="button"
+              className="absolute top-1.5 right-1 z-10 flex h-5 w-5 items-center justify-center rounded text-sm leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
+              aria-label="Fjern"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeLock(lp.id);
+              }}
+            >
+              ×
+            </button>
+            <TooltipBody label={lp.label} payload={lp.payload} />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 
   if (chartLayoutFullscreen) {
@@ -155,7 +291,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-lg font-bold text-white">Relativ Avkastning</h3>
-              <p className="text-xs text-slate-500">Fullskjerm — sidefelt til venstre</p>
+              <p className="text-xs text-slate-500">Fullskjerm — sidefelt til venstre. Klikk graf for å låse opptil {MAX_LOCKED_POINTS} punkter.</p>
             </div>
             <button
               type="button"
@@ -184,11 +320,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
               </span>
             </div>
           </div>
-          <div className="flex-1 min-h-0 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              {lineChart}
-            </ResponsiveContainer>
-          </div>
+          <div className="flex-1 min-h-0 w-full min-w-0">{renderChartPanel('h-full')}</div>
         </div>
       </div>
     );
@@ -274,6 +406,10 @@ const MainDashboard: React.FC<DashboardProps> = ({
             <div>
               <h3 className="text-lg font-bold text-white">Relativ Avkastning</h3>
               <p className="text-xs text-slate-500">Benchmark-sammenligning (0% ved start)</p>
+              <p className="text-[11px] text-slate-500 mt-1 max-w-xl">
+                Hover for tooltip. Klikk på grafen for å låse opptil {MAX_LOCKED_POINTS} tidspunkt. Klikk
+                samme sted igjen, på boksen eller × for å fjerne.
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
@@ -293,11 +429,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
           </div>
-          <div className="h-[450px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              {lineChart}
-            </ResponsiveContainer>
-          </div>
+          <div className="h-[450px] w-full min-w-0">{renderChartPanel('h-[450px]')}</div>
         </div>
 
         {/* Summary Table */}
