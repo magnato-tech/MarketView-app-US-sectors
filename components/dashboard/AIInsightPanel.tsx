@@ -1,0 +1,51 @@
+import React from 'react';
+import type { AIInsightPanelProps } from './types';
+
+export const AIInsightPanel: React.FC<AIInsightPanelProps> = ({ aiInsight, period }) => {
+  return (
+    <div className="relative group">
+      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-10 group-hover:opacity-20 transition duration-1000 group-hover:duration-200"></div>
+      <div className="relative bg-slate-900/80 backdrop-blur-xl border border-white/5 p-6 rounded-2xl flex flex-col md:flex-row gap-6 items-start">
+        <div className="flex flex-col items-center gap-3 shrink-0">
+          <div className="p-3 bg-blue-600/10 rounded-2xl text-blue-400 border border-blue-500/20 shadow-xl">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Aktiv Analyse</span>
+          </div>
+        </div>
+        
+        <div className="flex-1 space-y-4">
+          <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <h4 className="text-sm font-black text-white flex items-center gap-2 uppercase tracking-wider">
+              Gemini AS <span className="text-blue-500">Markedsrapport</span>
+            </h4>
+            <span className="text-[10px] text-slate-500 font-bold bg-slate-950 px-2 py-1 rounded">Periode: {period}</span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Markedskommentar
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed font-medium">
+                {aiInsight ? aiInsight.split('\n')[0] : "Genererer analyse av nåværende markedssituasjon..."}
+              </p>
+            </div>
+            <div className="space-y-2 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
+              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <svg className="w-3 h-3 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                Utsikter for neste periode
+              </div>
+              <p className="text-slate-400 text-sm leading-relaxed italic">
+                {aiInsight && aiInsight.includes('\n') ? aiInsight.split('\n').slice(1).join(' ') : "Vurderer makroøkonomiske utsikter..."}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
