@@ -60,6 +60,7 @@ export function ChartTooltip({
           const key = String(entry.dataKey ?? index);
           if (key.endsWith('_SMA')) return null; // Skip SMA in range tooltip for clarity
 
+          const isVix = key === '^VIX' || key === '^VIX_SCALED';
           const raw = entry.value;
           let display: number;
 
@@ -84,7 +85,10 @@ export function ChartTooltip({
             <div key={`${key}-${index}`} className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                <span className="text-slate-400">{entry.name}:</span>
+                <span className="text-slate-400">
+                  {entry.name}
+                  {isVix && <span className="text-[8px] ml-1 opacity-50">(skalert)</span>}:
+                </span>
               </div>
               <span className={`font-mono font-bold ${getTrendColorClass(display)}`}>
                 {formatPercent(display)}

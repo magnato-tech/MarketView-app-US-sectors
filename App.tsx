@@ -14,7 +14,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <DashboardProvider initialTickers={['^GSPC', '^NDX', '^VIX', 'XLK', 'XLF']}>
+    <DashboardProvider initialTickers={['^NDX', '^GSPC', 'XLE', 'XLB']}>
       <div
         ref={rootRef}
         className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden bg-slate-950 text-slate-200"

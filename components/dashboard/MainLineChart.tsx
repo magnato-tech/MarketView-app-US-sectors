@@ -17,20 +17,48 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
 
-  const chartData = useMemo(() => {
-    if (!showSMA) return data;
+  const { chartData, vixScaleFactor } = useMemo(() => {
+    // 1. Calculate VIX scale factor
+    let maxSektor = 0;
+    let maxVix = 0;
 
-    let enrichedData = [...data];
-    activeTickers.forEach(sym => {
-      const prices = data.map(d => typeof d[sym] === 'number' ? d[sym] as number : 0);
-      const smaValues = calculateSMA(prices, smaWindow);
-      
-      enrichedData = enrichedData.map((d, i) => ({
-        ...d,
-        [`${sym}_SMA`]: smaValues[i]
-      }));
+    data.forEach(d => {
+      activeTickers.forEach(sym => {
+        const val = Math.abs(typeof d[sym] === 'number' ? d[sym] as number : 0);
+        if (sym === '^VIX') {
+          if (val > maxVix) maxVix = val;
+        } else {
+          if (val > maxSektor) maxSektor = val;
+        }
+      });
     });
-    return enrichedData;
+
+    // Default to 1.0 if no data or VIX is not active
+    const factor = (maxVix > 0 && maxSektor > 0) ? (maxSektor / maxVix) * 0.8 : 1.0;
+
+    // 2. Enrich data with SMA and scaled VIX
+    let enrichedData = data.map(d => {
+      const newPoint = { ...d };
+      if (typeof d['^VIX'] === 'number') {
+        newPoint['^VIX_SCALED'] = (d['^VIX'] as number) * factor;
+      }
+      return newPoint;
+    });
+
+    if (showSMA) {
+      activeTickers.forEach(sym => {
+        const key = sym === '^VIX' ? '^VIX_SCALED' : sym;
+        const prices = enrichedData.map(d => typeof d[key] === 'number' ? d[key] as number : 0);
+        const smaValues = calculateSMA(prices, smaWindow);
+        
+        enrichedData = enrichedData.map((d, i) => ({
+          ...d,
+          [`${sym}_SMA`]: smaValues[i]
+        }));
+      });
+    }
+
+    return { chartData: enrichedData, vixScaleFactor: factor };
   }, [data, activeTickers, showSMA, smaWindow]);
 
   const handleMouseDown = (e: any) => {
@@ -127,12 +155,17 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         const ticker = TICKERS.find(t => t.symbol === sym);
         if (!ticker) return null;
         
+        const dataKey = sym === '^VIX' ? '^VIX_SCALED' : sym;
+        const displayName = sym === '^VIX' 
+          ? `${ticker.name} (auto-skalert ${vixScaleFactor.toFixed(2)}x)` 
+          : ticker.name;
+
         const lines = [
           <Line
             key={sym}
             type="monotone"
-            dataKey={sym}
-            name={ticker.name}
+            dataKey={dataKey}
+            name={displayName}
             stroke={ticker.color}
             strokeWidth={sym.startsWith('^') ? 3 : 2}
             dot={false}
