@@ -41,7 +41,7 @@ export type ChartToolbarProps = {
 export type MainLineChartProps = {
   data: MarketDataPoint[];
   activeTickers: string[];
-  onTooltipContent: (props: { active?: boolean; payload?: RechartsTooltipPayloadItem[]; label?: string | number }) => React.ReactNode;
+  onTooltipContent: (props: { active?: boolean; payload?: RechartsTooltipPayloadItem[]; label?: string | number; rangeSelection?: ChartRangeSelection | null; anchorIndex?: number | null }) => React.ReactNode;
   showSMA?: boolean;
   smaWindow?: number;
 };

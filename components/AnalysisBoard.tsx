@@ -10,14 +10,31 @@ import { formatPercent } from '../utils/formatters';
 export const AnalysisBoard: React.FC = () => {
   const { data, summary, aiInsight, period, activeTickers } = useDashboard();
   const [smaWindow, setSmaWindow] = useState(20);
+  const [showSMA, setShowSMA] = useState(true);
 
-  const renderTooltip = (props: { active?: boolean; payload?: RechartsTooltipPayloadItem[]; label?: string | number }) => (
+  const handleSmaClick = (w: number) => {
+    if (smaWindow === w && showSMA) {
+      setShowSMA(false);
+    } else {
+      setSmaWindow(w);
+      setShowSMA(true);
+    }
+  };
+
+  const renderTooltip = (props: { 
+    active?: boolean; 
+    payload?: RechartsTooltipPayloadItem[]; 
+    label?: string | number; 
+    rangeSelection?: ChartRangeSelection | null;
+    anchorIndex?: number | null 
+  }) => (
     <ChartTooltip
       active={props.active}
       payload={props.payload}
       label={props.label}
       data={data}
-      anchorIndex={null}
+      anchorIndex={props.anchorIndex ?? null}
+      rangeSelection={props.rangeSelection}
     />
   );
 
@@ -32,12 +49,12 @@ export const AnalysisBoard: React.FC = () => {
           </div>
           <div className="flex items-center gap-3 bg-slate-950 p-1 rounded-lg border border-slate-800">
             <span className="text-[10px] font-black text-slate-500 uppercase px-2">SMA Vindu:</span>
-            {[10, 20, 50].map(w => (
+            {[10, 20, 50, 150, 200].map(w => (
               <button
                 key={w}
-                onClick={() => setSmaWindow(w)}
+                onClick={() => handleSmaClick(w)}
                 className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
-                  smaWindow === w 
+                  smaWindow === w && showSMA
                     ? 'bg-blue-600 text-white' 
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
@@ -54,7 +71,7 @@ export const AnalysisBoard: React.FC = () => {
               data={data} 
               activeTickers={activeTickers} 
               onTooltipContent={renderTooltip}
-              showSMA={true}
+              showSMA={showSMA}
               smaWindow={smaWindow}
             />
           </ResponsiveContainer>

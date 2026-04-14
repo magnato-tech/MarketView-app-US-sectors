@@ -50,15 +50,18 @@ const MainDashboard: React.FC<DashboardProps> = ({
     />
   );
 
-  const renderTooltip = (props: { active?: boolean; payload?: RechartsTooltipPayloadItem[]; label?: string | number }) => (
-    <ChartTooltip
-      active={props.active}
-      payload={props.payload}
-      label={props.label}
-      data={data}
-      anchorIndex={null}
-    />
-  );
+  const renderTooltip = (props: any) => {
+    return (
+      <ChartTooltip
+        active={props.active}
+        payload={props.payload}
+        label={props.label}
+        data={data}
+        anchorIndex={props.anchorIndex ?? null}
+        rangeSelection={props.rangeSelection}
+      />
+    );
+  };
 
   const lineChart = (
     <MainLineChart 

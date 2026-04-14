@@ -21,5 +21,5 @@ export const TICKERS: TickerInfo[] = [
   { symbol: 'XLRE', name: 'Real Estate', category: 'Sector', color: '#14b8a6' },
 ];
 
-export const PERIODS = ['1d', '5d', '1mo', '2mo', '3mo', '6mo', '1y', '2y'] as const;
+export const PERIODS = ['1d', '5d', '2w', '1mo', '2mo', '3mo', '6mo', '1y', '2y', '5y'] as const;
 export const INTERVALS = ['1d', '1wk', '1mo'] as const;

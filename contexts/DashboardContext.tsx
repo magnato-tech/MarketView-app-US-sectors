@@ -19,6 +19,8 @@ interface DashboardContextType {
   handleTickerToggle: (symbol: string) => void;
   handlePeriodChange: (period: Period) => void;
   handleIntervalChange: (interval: Interval) => void;
+  onPeriodChange: (period: Period) => void;
+  onIntervalChange: (interval: Interval) => void;
   refreshData: () => void;
 }
 
@@ -48,6 +50,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     handleTickerToggle,
     handlePeriodChange,
     handleIntervalChange,
+    onPeriodChange: handlePeriodChange,
+    onIntervalChange: handleIntervalChange,
     refreshData,
   };
 

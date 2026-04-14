@@ -10,12 +10,14 @@ import {
 const periodMap: Record<Period, string> = {
   '1d': '1d',
   '5d': '5d',
+  '2w': '14d',
   '1mo': '1mo',
   '2mo': '2mo',
   '3mo': '3mo',
   '6mo': '6mo',
   '1y': '1y',
   '2y': '2y',
+  '5y': '5y',
 };
 
 const intervalMap: Record<Interval, string> = {
