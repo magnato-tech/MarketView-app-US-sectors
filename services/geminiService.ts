@@ -382,7 +382,7 @@ export const getMarketInsights = async (
     const prompt = `Du er en erfaren markedskommentator for hobbyinvestorer.
 Mål: levere to tydelige kommentarer:
 1) oppsummering av ledende analytiker-/nyhetssignaler,
-2) konkret sektoranbefaling basert på indeksene i datasettet.
+2) konkret sektoranbefaling basert på top-down sektorkategorier i datasettet.
 
 Data:
 - Periode: ${period}
@@ -409,6 +409,7 @@ Arbeidsmetode:
 6) Ikke nevn VIX automatisk. Nevn VIX kun hvis det er tydelig relevant nå (for eksempel ved rask oppgang eller nivå rundt/over 20).
 7) Kommenter minst 2 konkrete vendingstidspunkter med dato og hva som snudde.
 8) Gi én tydelig anbefalt sektor nå, med kort begrunnelse og én risikofaktor.
+9) Prioriter sektorrotasjon og regime fremfor enkeltinstrument-støy.
 
 Svarformat (nøyaktig):
 Analytikerkonsensus:

@@ -6,6 +6,7 @@ export interface TickerInfo {
   symbol: string;
   name: string;
   category: 'Index' | 'Sector';
+  group?: string;
   color: string;
 }
 

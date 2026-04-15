@@ -2,23 +2,29 @@
 import { TickerInfo } from './types';
 
 export const TICKERS: TickerInfo[] = [
-  // Indices
+  // Anchor indices (kept for context, but dashboard defaults to sectors)
   { symbol: '^GSPC', name: 'S&P 500', category: 'Index', color: '#3b82f6' },
   { symbol: '^NDX', name: 'Nasdaq 100', category: 'Index', color: '#8b5cf6' },
-  { symbol: '^DJI', name: 'Dow Jones', category: 'Index', color: '#ef4444' },
   { symbol: '^VIX', name: 'VIX Volatility', category: 'Index', color: '#f43f5e' },
-  // Sectors
-  { symbol: 'XLK', name: 'Technology', category: 'Sector', color: '#10b981' },
-  { symbol: 'XLF', name: 'Financial', category: 'Sector', color: '#f59e0b' },
-  { symbol: 'XLV', name: 'Health Care', category: 'Sector', color: '#06b6d4' },
-  { symbol: 'XLE', name: 'Energy', category: 'Sector', color: '#f97316' },
-  { symbol: 'XLI', name: 'Industrials', category: 'Sector', color: '#64748b' },
-  { symbol: 'XLY', name: 'Consumer Disc', category: 'Sector', color: '#ec4899' },
-  { symbol: 'XLP', name: 'Consumer Staples', category: 'Sector', color: '#a855f7' },
-  { symbol: 'XLB', name: 'Materials', category: 'Sector', color: '#84cc16' },
-  { symbol: 'XLU', name: 'Utilities', category: 'Sector', color: '#eab308' },
-  { symbol: 'XLC', name: 'Communication', category: 'Sector', color: '#6366f1' },
-  { symbol: 'XLRE', name: 'Real Estate', category: 'Sector', color: '#14b8a6' },
+
+  // Top-down sector categories (representative ETFs)
+  { symbol: 'XLK', name: 'Teknologi', category: 'Sector', group: 'Hovedkategorier', color: '#10b981' },
+  { symbol: 'XLV', name: 'Helse', category: 'Sector', group: 'Hovedkategorier', color: '#0ea5e9' },
+  { symbol: 'XLF', name: 'Finans', category: 'Sector', group: 'Hovedkategorier', color: '#f59e0b' },
+  { symbol: 'XLRE', name: 'Eiendom', category: 'Sector', group: 'Hovedkategorier', color: '#14b8a6' },
+  { symbol: 'IGF', name: 'Infrastruktur', category: 'Sector', group: 'Hovedkategorier', color: '#64748b' },
+  { symbol: 'XLY', name: 'Konsum', category: 'Sector', group: 'Hovedkategorier', color: '#ec4899' },
+  { symbol: 'XLC', name: 'Telekom', category: 'Sector', group: 'Hovedkategorier', color: '#6366f1' },
+  { symbol: 'XLI', name: 'Industri', category: 'Sector', group: 'Hovedkategorier', color: '#94a3b8' },
+  { symbol: 'XLU', name: 'Forsyning', category: 'Sector', group: 'Hovedkategorier', color: '#eab308' },
+  { symbol: 'SHY', name: 'Obligasjoner kort', category: 'Sector', group: 'Hovedkategorier', color: '#c084fc' },
+  { symbol: 'TLT', name: 'Obligasjoner lang', category: 'Sector', group: 'Hovedkategorier', color: '#8b5cf6' },
+
+  // Innsatsvarer (samlet)
+  { symbol: 'XLE', name: 'Energi', category: 'Sector', group: 'Innsatsvarer', color: '#f97316' },
+  { symbol: 'XLB', name: 'Materialer', category: 'Sector', group: 'Innsatsvarer', color: '#84cc16' },
+  { symbol: 'DBC', name: 'Råvarer', category: 'Sector', group: 'Innsatsvarer', color: '#65a30d' },
+  { symbol: 'GLD', name: 'Edelmetaller', category: 'Sector', group: 'Innsatsvarer', color: '#facc15' },
 ];
 
 export const PERIODS = ['1d', '5d', '2w', '1mo', '2mo', '3mo', '6mo', '1y', '2y', '5y'] as const;
