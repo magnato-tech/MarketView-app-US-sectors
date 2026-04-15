@@ -10,6 +10,9 @@ const GEMINI_MODEL_FALLBACKS: readonly string[] = [
 ];
 
 type ApiVersion = "v1" | "v1beta";
+
+// --- Types for internal logic ---
+
 type MarketNewsSignal = {
   source: string;
   title: string;
@@ -29,6 +32,29 @@ type VixMetrics = {
   regime: string;
 };
 
+type TurningPoint = {
+  symbol: string;
+  date: string;
+  prevMovePct: number;
+  newMovePct: number;
+  swingPct: number;
+};
+
+type MarketContext = {
+  summary: SummaryStats[];
+  period: Period;
+  recentData?: MarketDataPoint[];
+  newsSignals: MarketNewsSignal[];
+  vix: VixMetrics;
+  turningPoints: TurningPoint[];
+  divergenceSignals: string[];
+  leaders: string;
+  laggers: string;
+  instrumentContext: string;
+};
+
+// --- Constants ---
+
 const NEWS_CACHE_KEY = "marketNewsSnapshotV1";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_NEWS_SIGNALS = 8;
@@ -46,45 +72,9 @@ const PUBLIC_FEEDS: { source: string; url: string }[] = [
   { source: "IMF", url: "https://www.imf.org/en/News/RSS" },
 ];
 const MIN_SECTION_LENGTH = 55;
+const MIN_DATES_IN_OUTPUT = 1;
 
-const buildGenerateContentUrl = (
-  apiVersion: ApiVersion,
-  model: string,
-  apiKey: string
-) =>
-  `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
-
-async function tryGenerateContent(
-  url: string,
-  body: object
-): Promise<{ ok: true; text: string } | { ok: false; notFound: boolean; message: string }> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (response.ok) {
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (text) return { ok: true, text };
-    return { ok: false, notFound: false, message: "Tomt svar fra modellen." };
-  }
-
-  let message = `HTTP ${response.status}`;
-  let notFound = response.status === 404;
-  try {
-    const err = await response.json();
-    const msg = err?.error?.message as string | undefined;
-    if (msg) {
-      message = msg;
-      notFound = notFound || /not found|NOT_FOUND|does not exist/i.test(msg);
-    }
-  } catch {
-    // ignore JSON parse errors
-  }
-  return { ok: false, notFound, message };
-}
+// --- Helper Functions ---
 
 const formatNum = (value: number | null, digits = 2): string =>
   typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "n/a";
@@ -107,6 +97,12 @@ const isVixMaterial = (vix: VixMetrics): boolean => {
   const threeDay = Math.abs(vix.threeDayChangePct ?? 0);
   return (vix.last ?? 0) >= 20 || oneDay >= 5 || threeDay >= 10;
 };
+
+const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
+
+const stripMarkdown = (value: string): string => value.replace(/[*_`#>-]/g, "").trim();
+
+// --- Data Fetching Layer ---
 
 async function fetchVixMetrics(): Promise<VixMetrics> {
   try {
@@ -137,49 +133,42 @@ async function fetchVixMetrics(): Promise<VixMetrics> {
   }
 }
 
-const readNewsCache = (): DailyNewsSnapshot | null => {
-  if (typeof localStorage === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(NEWS_CACHE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as DailyNewsSnapshot;
-  } catch {
-    return null;
-  }
-};
-
-const writeNewsCache = (snapshot: DailyNewsSnapshot) => {
-  if (typeof localStorage === "undefined") return;
-  try {
-    localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(snapshot));
-  } catch {
-    // ignore cache write errors
-  }
-};
-
 async function fetchFeedSignals(feedUrl: string, source: string): Promise<MarketNewsSignal[]> {
   if (typeof DOMParser === "undefined") return [];
-  const response = await fetch(feedUrl);
-  if (!response.ok) throw new Error(`RSS HTTP ${response.status}`);
-  const xml = await response.text();
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xml, "text/xml");
-  const items = Array.from(doc.querySelectorAll("item")).slice(0, 3);
-  return items
-    .map((item) => {
-      const title = item.querySelector("title")?.textContent?.trim() ?? "";
-      const pubDate = item.querySelector("pubDate")?.textContent?.trim() ?? "";
-      return { source, title, publishedAt: pubDate };
-    })
-    .filter((s) => s.title.length > 0);
+  try {
+    const response = await fetch(feedUrl);
+    if (!response.ok) throw new Error(`RSS HTTP ${response.status}`);
+    const xml = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, "text/xml");
+    const items = Array.from(doc.querySelectorAll("item")).slice(0, 3);
+    return items
+      .map((item) => {
+        const title = item.querySelector("title")?.textContent?.trim() ?? "";
+        const pubDate = item.querySelector("pubDate")?.textContent?.trim() ?? "";
+        return { source, title, publishedAt: pubDate };
+      })
+      .filter((s) => s.title.length > 0);
+  } catch (err) {
+    console.warn(`Failed to fetch feed ${source}:`, err);
+    return [];
+  }
 }
 
 async function getDailyNewsSignals(): Promise<MarketNewsSignal[]> {
   const now = Date.now();
   const today = new Date(now).toISOString().slice(0, 10);
-  const cached = readNewsCache();
-  if (cached && cached.date === today && now - new Date(cached.generatedAt).getTime() < DAY_MS) {
-    return cached.signals;
+  
+  if (typeof localStorage !== "undefined") {
+    try {
+      const raw = localStorage.getItem(NEWS_CACHE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw) as DailyNewsSnapshot;
+        if (cached.date === today && now - new Date(cached.generatedAt).getTime() < DAY_MS) {
+          return cached.signals;
+        }
+      }
+    } catch {}
   }
 
   const settled = await Promise.allSettled(
@@ -192,38 +181,22 @@ async function getDailyNewsSignals(): Promise<MarketNewsSignal[]> {
     0,
     MAX_NEWS_SIGNALS
   );
-  const snapshot: DailyNewsSnapshot = {
-    date: today,
-    generatedAt: new Date(now).toISOString(),
-    signals: deduped,
-  };
-  writeNewsCache(snapshot);
+  
+  if (typeof localStorage !== "undefined") {
+    try {
+      const snapshot: DailyNewsSnapshot = {
+        date: today,
+        generatedAt: new Date(now).toISOString(),
+        signals: deduped,
+      };
+      localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(snapshot));
+    } catch {}
+  }
+  
   return deduped;
 }
 
-const buildHistoryContext = (summary: SummaryStats[], recentData: MarketDataPoint[] | undefined): string => {
-  if (!recentData?.length) return "Ingen historikk tilgjengelig.";
-  const symbols = summary.map((s) => s.symbol);
-  const first = recentData[0];
-  const last = recentData[recentData.length - 1];
-
-  const rows = symbols.map((symbol) => {
-    const from = first[symbol];
-    const to = last[symbol];
-    if (typeof from !== "number" || typeof to !== "number" || from === 0) return `${symbol}: mangler data`;
-    const pct = ((to - from) / from) * 100;
-    return `${symbol}: start ${from.toFixed(2)}, slutt ${to.toFixed(2)}, endring ${pct.toFixed(2)}%`;
-  });
-  return rows.join("\n");
-};
-
-type TurningPoint = {
-  symbol: string;
-  date: string;
-  prevMovePct: number;
-  newMovePct: number;
-  swingPct: number;
-};
+// --- Context Builder Layer ---
 
 const detectTurningPoints = (
   summary: SummaryStats[],
@@ -263,94 +236,183 @@ const detectTurningPoints = (
   return points.sort((a, b) => b.swingPct - a.swingPct).slice(0, 5);
 };
 
-const buildTurningPointContext = (
-  summary: SummaryStats[],
-  recentData: MarketDataPoint[] | undefined
-): string => {
-  const turningPoints = detectTurningPoints(summary, recentData);
-  if (turningPoints.length === 0) {
-    return "Ingen tydelige vendingstidspunkter over terskel funnet i valgt datasett.";
-  }
-  const nameBySymbol = new Map(summary.map((s) => [s.symbol, s.name]));
-  return turningPoints
-    .map((tp) => {
-      const name = nameBySymbol.get(tp.symbol) ?? tp.symbol;
-      return `${tp.date}: ${name} (${tp.symbol}) snudde fra ${tp.prevMovePct.toFixed(2)}% til ${tp.newMovePct.toFixed(
-        2
-      )}% (sving ${tp.swingPct.toFixed(2)}pp)`;
-    })
-    .join("\n");
+const buildHistoryContext = (summary: SummaryStats[], recentData: MarketDataPoint[] | undefined): string => {
+  if (!recentData?.length) return "Ingen historikk tilgjengelig.";
+  const symbols = summary.map((s) => s.symbol);
+  const first = recentData[0];
+  const last = recentData[recentData.length - 1];
+
+  const rows = symbols.map((symbol) => {
+    const from = first[symbol];
+    const to = last[symbol];
+    if (typeof from !== "number" || typeof to !== "number" || from === 0) return `${symbol}: mangler data`;
+    const pct = ((to - from) / from) * 100;
+    return `${symbol}: start ${from.toFixed(2)}, slutt ${to.toFixed(2)}, endring ${pct.toFixed(2)}%`;
+  });
+  return rows.join("\n");
 };
 
-const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
+const detectDivergence = (summary: SummaryStats[]): string[] => {
+  const signals: string[] = [];
+  const find = (sym: string) => summary.find(s => s.symbol === sym);
+  
+  const raw = find('XLB'); // Materialer
+  const energy = find('XLE'); // Energi
+  const tech = find('XLK'); // Teknologi
+  
+  if (raw && energy) {
+    if (raw.percentChange > 2 && energy.percentChange < -1) {
+      signals.push("Divergens: Råvarer stiger kraftig mens energi faller. Dette kan tyde på at inflasjonspresset flytter seg fra olje til andre innsatsvarer.");
+    }
+  }
+  
+  if (tech && summary.some(s => s.percentChange > 15)) {
+    const hot = summary.filter(s => s.percentChange > 20);
+    if (hot.length > 0) {
+      signals.push(`Overoppheting: ${hot.map(h => h.name).join(', ')} har steget ekstremt mye på kort tid (+20%). Dette indikerer spekulativ eufori i enkelte lommer.`);
+    }
+  }
 
-const stripMarkdown = (value: string): string => value.replace(/[*_`#>-]/g, "").trim();
+  return signals;
+};
 
-const isWeakSection = (value: string): boolean => {
+async function buildMarketContext(
+  summary: SummaryStats[],
+  period: Period,
+  recentData?: MarketDataPoint[]
+): Promise<MarketContext> {
+  const sorted = [...summary].sort((a, b) => b.percentChange - a.percentChange);
+  const leaders = sorted.slice(0, 2).map((s) => `${s.name} (${s.symbol}, ${s.percentChange.toFixed(2)}%)`).join(", ");
+  const laggers = sorted.slice(-2).map((s) => `${s.name} (${s.symbol}, ${s.percentChange.toFixed(2)}%)`).join(", ");
+  const instrumentContext = summary.map(s => `${s.name} (${s.symbol}): ${s.percentChange.toFixed(2)}%`).join(", ");
+
+  const [newsSignals, vix] = await Promise.all([getDailyNewsSignals(), fetchVixMetrics()]);
+  const turningPoints = detectTurningPoints(summary, recentData);
+  const divergenceSignals = detectDivergence(summary);
+
+  return {
+    summary,
+    period,
+    recentData,
+    newsSignals,
+    vix,
+    turningPoints,
+    divergenceSignals,
+    leaders,
+    laggers,
+    instrumentContext,
+  };
+}
+
+// --- Quality Guard Layer ---
+
+const isWeakSection = (value: string, ctx: MarketContext): boolean => {
   const text = normalizeWhitespace(stripMarkdown(value)).toLowerCase();
   if (!text || text.length < MIN_SECTION_LENGTH) return true;
+  
   const genericPatterns = [
     "markedet har de siste",
     "analysen viser at",
     "vi ser at markedet",
     "utsiktene er usikre",
   ];
-  return genericPatterns.some((p) => text.startsWith(p));
+  if (genericPatterns.some((p) => text.startsWith(p))) return true;
+
+  // Sjekk om teksten inneholder datoer fra vendepunkter hvis vi har dem
+  if (ctx.turningPoints.length > 0) {
+    const datesFound = ctx.turningPoints.filter(tp => text.includes(tp.date.toLowerCase()));
+    if (datesFound.length < MIN_DATES_IN_OUTPUT) {
+      // Hvis vi har sterke vendepunkter, men AI ignorerer dem, er det en svakhet
+      return true;
+    }
+  }
+
+  return false;
 };
 
-const parseSections = (raw: string): { comment: string; outlook: string } => {
-  const cleaned = raw.trim();
-  const commentMatch = cleaned.match(/(?:Analytikerkonsensus|Markedskommentar):\s*([\s\S]*?)(?:\n\s*(?:Sektoranbefaling nå|Utsikter for neste periode):|$)/i);
-  const outlookMatch = cleaned.match(/(?:Sektoranbefaling nå|Utsikter for neste periode):\s*([\s\S]*)$/i);
-  const comment = normalizeWhitespace(stripMarkdown(commentMatch?.[1] ?? ""));
-  const outlook = normalizeWhitespace(stripMarkdown(outlookMatch?.[1] ?? ""));
-  if (comment || outlook) return { comment, outlook };
-
-  const lines = cleaned.split("\n").map((l) => normalizeWhitespace(stripMarkdown(l))).filter(Boolean);
-  return {
-    comment: lines[0] ?? "",
-    outlook: lines.slice(1).join(" "),
-  };
-};
-
-const buildFallbackAnalysis = (
-  summary: SummaryStats[],
-  period: Period,
-  vix: VixMetrics
-): { comment: string; outlook: string } => {
+const buildFallbackAnalysis = (ctx: MarketContext): { comment: string; outlook: string } => {
+  const { summary, period, vix } = ctx;
   const sorted = [...summary].sort((a, b) => b.percentChange - a.percentChange);
   const leader = sorted[0];
   const lagger = sorted[sorted.length - 1];
+  
   const vixSentence = isVixMaterial(vix)
     ? ` VIX har begynt å bevege seg mer urolig, og det kan være et tidlig faresignal hvis den fortsetter opp.`
     : "";
+    
   const comment = `Oppsummert fra dagens markedskommentarer: sentimentet er fortsatt forsiktig positivt, men mer følsomt for negative nyheter enn tidligere. I perioden ${period} har ${
     leader?.name ?? "ukjent"
   } vært sterkest, mens ${lagger?.name ?? "ukjent"} har hengt etter.${vixSentence}`;
+  
   const outlook = isVixMaterial(vix)
     ? `Sektoranbefaling nå: hold hovedvekt i teknologi og helse, og vær mer selektiv i energi til uroen roer seg. Hvis usikkerheten skyter opp, flytt mer mot defensive sektorer med stabile inntjeningstall.`
     : `Sektoranbefaling nå: teknologi og industri ser mest attraktive ut nå, med nøytral vekt i energi. Stram inn risiko hvis energipriser hopper opp igjen eller markedsbredden svekkes videre.`;
+    
   return { comment, outlook };
 };
 
-const finalizeAnalysis = (
-  raw: string,
-  summary: SummaryStats[],
-  period: Period,
-  vix: VixMetrics
-): string => {
-  const parsed = parseSections(raw);
-  const fallback = buildFallbackAnalysis(summary, period, vix);
-  const comment = isWeakSection(parsed.comment) ? fallback.comment : parsed.comment;
-  let outlook = isWeakSection(parsed.outlook) ? fallback.outlook : parsed.outlook;
-  if (normalizeWhitespace(outlook).toLowerCase() === normalizeWhitespace(comment).toLowerCase()) {
-    outlook = fallback.outlook;
+const finalizeAnalysis = (raw: string, ctx: MarketContext): string => {
+  const cleaned = raw.trim();
+  const commentMatch = cleaned.match(/(?:Analytikerkonsensus|Markedskommentar):\s*([\s\S]*?)(?:\n\s*(?:Sektoranbefaling nå|Utsikter for neste periode):|$)/i);
+  const outlookMatch = cleaned.match(/(?:Sektoranbefaling nå|Utsikter for neste periode):\s*([\s\S]*)$/i);
+  
+  let comment = normalizeWhitespace(stripMarkdown(commentMatch?.[1] ?? ""));
+  let outlook = normalizeWhitespace(stripMarkdown(outlookMatch?.[1] ?? ""));
+  
+  if (!comment && !outlook) {
+    const lines = cleaned.split("\n").map((l) => normalizeWhitespace(stripMarkdown(l))).filter(Boolean);
+    comment = lines[0] ?? "";
+    outlook = lines.slice(1).join(" ");
   }
-  return `Analytikerkonsensus:\n${comment}\n\nSektoranbefaling nå:\n${outlook}`;
+
+  const fallback = buildFallbackAnalysis(ctx);
+  
+  const finalComment = isWeakSection(comment, ctx) ? fallback.comment : comment;
+  let finalOutlook = isWeakSection(outlook, ctx) ? fallback.outlook : outlook;
+  
+  if (normalizeWhitespace(finalOutlook).toLowerCase() === normalizeWhitespace(finalComment).toLowerCase()) {
+    finalOutlook = fallback.outlook;
+  }
+  
+  return `Analytikerkonsensus:\n${finalComment}\n\nSektoranbefaling nå:\n${finalOutlook}`;
 };
+
+// --- Model Runner Layer ---
+
+const buildGenerateContentUrl = (apiVersion: ApiVersion, model: string, apiKey: string) =>
+  `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+
+async function tryGenerateContent(url: string, body: object): Promise<{ ok: true; text: string } | { ok: false; notFound: boolean; message: string }> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) return { ok: true, text };
+    return { ok: false, notFound: false, message: "Tomt svar fra modellen." };
+  }
+
+  let message = `HTTP ${response.status}`;
+  let notFound = response.status === 404;
+  try {
+    const err = await response.json();
+    const msg = err?.error?.message as string | undefined;
+    if (msg) {
+      message = msg;
+      notFound = notFound || /not found|NOT_FOUND|does not exist/i.test(msg);
+    }
+  } catch {}
+  return { ok: false, notFound, message };
+}
 
 const isQuotaOrRateError = (message: string): boolean =>
   /quota exceeded|rate limit|too many requests|resource exhausted/i.test(message);
+
+// --- Main Export ---
 
 export const getMarketInsights = async (
   summary: SummaryStats[], 
@@ -367,17 +429,15 @@ export const getMarketInsights = async (
       return "Legg til GEMINI_API_KEY i .env for å aktivere AI-markedsrapport.";
     }
 
-    const sorted = [...summary].sort((a, b) => b.percentChange - a.percentChange);
-    const leaders = sorted.slice(0, 2).map((s) => `${s.name} (${s.symbol}, ${s.percentChange.toFixed(2)}%)`).join(", ");
-    const laggers = sorted.slice(-2).map((s) => `${s.name} (${s.symbol}, ${s.percentChange.toFixed(2)}%)`).join(", ");
-    const context = summary.map(s => `${s.name} (${s.symbol}): ${s.percentChange.toFixed(2)}%`).join(", ");
-
-    const [newsSignals, vix] = await Promise.all([getDailyNewsSignals(), fetchVixMetrics()]);
-    const newsContext = newsSignals.length
-      ? newsSignals.map((s, i) => `${i + 1}. [${s.source}] ${s.title}`).join("\n")
+    const ctx = await buildMarketContext(summary, period, recentData);
+    
+    const newsContext = ctx.newsSignals.length
+      ? ctx.newsSignals.map((s, i) => `${i + 1}. [${s.source}] ${s.title}`).join("\n")
       : "Ingen tilgjengelige åpne nyhetssignaler i dag (bruk prisdata som hovedkilde).";
-    const historyContext = buildHistoryContext(summary, recentData);
-    const turningPointContext = buildTurningPointContext(summary, recentData);
+      
+    const turningPointContext = ctx.turningPoints.length
+      ? ctx.turningPoints.map((tp) => `${tp.date}: ${tp.symbol} snudde fra ${tp.prevMovePct.toFixed(2)}% til ${tp.newMovePct.toFixed(2)}% (sving ${tp.swingPct.toFixed(2)}pp)`).join("\n")
+      : "Ingen tydelige vendingstidspunkter funnet.";
 
     const prompt = `Du er en erfaren markedskommentator for hobbyinvestorer.
 Mål: levere to tydelige kommentarer:
@@ -385,17 +445,20 @@ Mål: levere to tydelige kommentarer:
 2) konkret sektoranbefaling basert på top-down sektorkategorier i datasettet.
 
 Data:
-- Periode: ${period}
-- Instrumenter: ${context}
-- Ledere: ${leaders}
-- Laggere: ${laggers}
-- VIX (alltid risikoanker): nivå ${formatNum(vix.last)}, 1d ${formatNum(vix.oneDayChangePct)}%, 3d ${formatNum(vix.threeDayChangePct)}%, regime ${vix.regime}
+- Periode: ${ctx.period}
+- Instrumenter: ${ctx.instrumentContext}
+- Ledere: ${ctx.leaders}
+- Laggere: ${ctx.laggers}
+- VIX (alltid risikoanker): nivå ${formatNum(ctx.vix.last)}, 1d ${formatNum(ctx.vix.oneDayChangePct)}%, 3d ${formatNum(ctx.vix.threeDayChangePct)}%, regime ${ctx.vix.regime}
 
 Kurvesignaler:
-${historyContext}
+${buildHistoryContext(ctx.summary, ctx.recentData)}
 
 Viktige vendingstidspunkter i kurvene (må kommenteres konkret):
 ${turningPointContext}
+
+Divergens- og regimesignaler (viktig å adressere):
+${ctx.divergenceSignals.length ? ctx.divergenceSignals.join('\n') : "Ingen sterke divergenssignaler funnet."}
 
 Dagens nyhets-/ekspertsignaler (åpne kilder, daglig snapshot):
 ${newsContext}
@@ -440,11 +503,10 @@ Sektoranbefaling nå:
     for (const { apiVersion, model } of attempts) {
       const url = buildGenerateContentUrl(apiVersion, model, apiKey);
       const result = await tryGenerateContent(url, requestBody);
-      if (result.ok) return finalizeAnalysis(result.text, summary, period, vix);
+      if (result.ok) return finalizeAnalysis(result.text, ctx);
       lastError = result.message;
       if (isQuotaOrRateError(lastError)) {
-        // Fall back to deterministic local analysis when quota is exhausted.
-        return finalizeAnalysis("", summary, period, vix);
+        return finalizeAnalysis("", ctx);
       }
       if (!result.notFound) break;
     }

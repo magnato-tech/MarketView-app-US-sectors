@@ -136,4 +136,54 @@ describe('GeminiService quality gates', () => {
     expect(prompt).toContain('2026-03-27');
     expect(prompt).toContain('2026-03-30');
   });
+
+  it('detects and injects divergence signals into prompt context', async () => {
+    const fetchMock = setupFetchMock('rich');
+    const divergenceSummary = [
+      { symbol: 'XLB', name: 'Materialer', percentChange: 5.0, color: '#000' },
+      { symbol: 'XLE', name: 'Energi', percentChange: -2.5, color: '#000' }
+    ];
+
+    await getMarketInsights(divergenceSummary, '1mo', recentData);
+
+    const geminiCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes('generateContent')
+    );
+    const body = JSON.parse(String((geminiCall?.[1] as RequestInit | undefined)?.body ?? '{}'));
+    const prompt = body?.contents?.[0]?.parts?.[0]?.text ?? '';
+
+    expect(prompt).toContain('Divergens- og regimesignaler');
+    expect(prompt).toContain('Råvarer stiger kraftig mens energi faller');
+  });
+
+  it('triggers fallback if AI ignores required turning point dates', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/yahoo/v8/finance/chart/%5EVIX')) {
+        return jsonResponse({ chart: { result: [{ indicators: { quote: [{ close: [20, 21] }] } }] } });
+      }
+      return jsonResponse({
+        candidates: [{
+          content: {
+            parts: [{
+              text: 'Analytikerkonsensus:\nMarkedet er sterkt nå. Alt ser bra ut.\n\nSektoranbefaling nå:\nKjøp teknologi.'
+            }]
+          }
+        }]
+      });
+    });
+
+    const turningData = [
+      { timestamp: '2026-03-22', '^NDX': 100 },
+      { timestamp: '2026-03-23', '^NDX': 90 },
+      { timestamp: '2026-03-27', '^NDX': 110 }
+    ];
+    const summary = [{ symbol: '^NDX', name: 'Nasdaq', percentChange: 10, color: '#000' }];
+
+    const result = await getMarketInsights(summary, '1mo', turningData);
+
+    // Skal ha brukt fallback fordi 2026-03-27 mangler i AI-svaret
+    expect(result).toContain('Oppsummert fra dagens markedskommentarer');
+  });
 });
