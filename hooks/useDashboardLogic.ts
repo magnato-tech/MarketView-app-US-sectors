@@ -10,7 +10,7 @@ export const useDashboardLogic = (initialTickers: string[]) => {
   const [interval, setInterval] = useState<Interval>('1d');
 
   const { data, summary, loading, refreshData } = useMarketData(selectedTickers, period, interval);
-  const { aiInsight } = useAIInsights(summary, period);
+  const { aiInsight } = useAIInsights(summary, period, data);
 
   const handleTickerToggle = (symbol: string) => {
     setSelectedTickers(prev => {

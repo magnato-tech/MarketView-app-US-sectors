@@ -1,35 +1,456 @@
+import { SummaryStats, Period, MarketDataPoint } from "../types";
 
-import { GoogleGenAI } from "@google/genai";
-import { SummaryStats, Period } from "../types";
+/** Primærmodell for markedsrapport (oppdatert fra gemini-1.5-flash). */
+const GEMINI_MODEL_PRIMARY = "gemini-3.1-flash";
 
-export const getMarketInsights = async (summary: SummaryStats[], period: Period): Promise<string> => {
+const GEMINI_MODEL_FALLBACKS: readonly string[] = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-pro",
+];
+
+type ApiVersion = "v1" | "v1beta";
+type MarketNewsSignal = {
+  source: string;
+  title: string;
+  publishedAt: string;
+};
+
+type DailyNewsSnapshot = {
+  date: string;
+  generatedAt: string;
+  signals: MarketNewsSignal[];
+};
+
+type VixMetrics = {
+  last: number | null;
+  oneDayChangePct: number | null;
+  threeDayChangePct: number | null;
+  regime: string;
+};
+
+const NEWS_CACHE_KEY = "marketNewsSnapshotV1";
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_NEWS_SIGNALS = 8;
+const VIX_SYMBOL = "^VIX";
+const VIX_THRESHOLDS = [
+  { min: 50, label: "vill panikk" },
+  { min: 40, label: "ekstrem frykt" },
+  { min: 30, label: "stor frykt" },
+  { min: 25, label: "frykt" },
+];
+const PUBLIC_FEEDS: { source: string; url: string }[] = [
+  { source: "Reuters Markets", url: "https://feeds.reuters.com/reuters/businessNews" },
+  { source: "Federal Reserve", url: "https://www.federalreserve.gov/feeds/press_all.xml" },
+  { source: "ECB", url: "https://www.ecb.europa.eu/rss/press.html" },
+  { source: "IMF", url: "https://www.imf.org/en/News/RSS" },
+];
+const MIN_SECTION_LENGTH = 55;
+
+const buildGenerateContentUrl = (
+  apiVersion: ApiVersion,
+  model: string,
+  apiKey: string
+) =>
+  `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+
+async function tryGenerateContent(
+  url: string,
+  body: object
+): Promise<{ ok: true; text: string } | { ok: false; notFound: boolean; message: string }> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) return { ok: true, text };
+    return { ok: false, notFound: false, message: "Tomt svar fra modellen." };
+  }
+
+  let message = `HTTP ${response.status}`;
+  let notFound = response.status === 404;
   try {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-    if (!apiKey) {
+    const err = await response.json();
+    const msg = err?.error?.message as string | undefined;
+    if (msg) {
+      message = msg;
+      notFound = notFound || /not found|NOT_FOUND|does not exist/i.test(msg);
+    }
+  } catch {
+    // ignore JSON parse errors
+  }
+  return { ok: false, notFound, message };
+}
+
+const formatNum = (value: number | null, digits = 2): string =>
+  typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "n/a";
+
+const calcPct = (from: number, to: number): number | null => {
+  if (!Number.isFinite(from) || !Number.isFinite(to) || from === 0) return null;
+  return ((to - from) / from) * 100;
+};
+
+const getVixRegime = (value: number | null): string => {
+  if (value == null || !Number.isFinite(value)) return "ukjent";
+  for (const t of VIX_THRESHOLDS) {
+    if (value >= t.min) return t.label;
+  }
+  return "rolig";
+};
+
+const isVixMaterial = (vix: VixMetrics): boolean => {
+  const oneDay = Math.abs(vix.oneDayChangePct ?? 0);
+  const threeDay = Math.abs(vix.threeDayChangePct ?? 0);
+  return (vix.last ?? 0) >= 20 || oneDay >= 5 || threeDay >= 10;
+};
+
+async function fetchVixMetrics(): Promise<VixMetrics> {
+  try {
+    const origin =
+      typeof window !== "undefined" && window.location?.origin && /^https?:/i.test(window.location.origin)
+        ? window.location.origin
+        : null;
+    if (!origin) {
+      return { last: null, oneDayChangePct: null, threeDayChangePct: null, regime: "ukjent" };
+    }
+    const path = `/api/yahoo/v8/finance/chart/${encodeURIComponent(VIX_SYMBOL)}?interval=1d&range=1mo`;
+    const response = await fetch(new URL(path, origin).toString());
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const json = await response.json();
+    const closes = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close as Array<number | null> | undefined;
+    const valid = (closes ?? []).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (valid.length < 2) {
+      return { last: null, oneDayChangePct: null, threeDayChangePct: null, regime: "ukjent" };
+    }
+    const last = valid[valid.length - 1];
+    const prev = valid[valid.length - 2];
+    const prev3 = valid[Math.max(0, valid.length - 4)];
+    const oneDayChangePct = calcPct(prev, last);
+    const threeDayChangePct = calcPct(prev3, last);
+    return { last, oneDayChangePct, threeDayChangePct, regime: getVixRegime(last) };
+  } catch (error) {
+    return { last: null, oneDayChangePct: null, threeDayChangePct: null, regime: "ukjent" };
+  }
+}
+
+const readNewsCache = (): DailyNewsSnapshot | null => {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(NEWS_CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as DailyNewsSnapshot;
+  } catch {
+    return null;
+  }
+};
+
+const writeNewsCache = (snapshot: DailyNewsSnapshot) => {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // ignore cache write errors
+  }
+};
+
+async function fetchFeedSignals(feedUrl: string, source: string): Promise<MarketNewsSignal[]> {
+  if (typeof DOMParser === "undefined") return [];
+  const response = await fetch(feedUrl);
+  if (!response.ok) throw new Error(`RSS HTTP ${response.status}`);
+  const xml = await response.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, "text/xml");
+  const items = Array.from(doc.querySelectorAll("item")).slice(0, 3);
+  return items
+    .map((item) => {
+      const title = item.querySelector("title")?.textContent?.trim() ?? "";
+      const pubDate = item.querySelector("pubDate")?.textContent?.trim() ?? "";
+      return { source, title, publishedAt: pubDate };
+    })
+    .filter((s) => s.title.length > 0);
+}
+
+async function getDailyNewsSignals(): Promise<MarketNewsSignal[]> {
+  const now = Date.now();
+  const today = new Date(now).toISOString().slice(0, 10);
+  const cached = readNewsCache();
+  if (cached && cached.date === today && now - new Date(cached.generatedAt).getTime() < DAY_MS) {
+    return cached.signals;
+  }
+
+  const settled = await Promise.allSettled(
+    PUBLIC_FEEDS.map((feed) => fetchFeedSignals(feed.url, feed.source))
+  );
+  const signals: MarketNewsSignal[] = settled.flatMap((entry) =>
+    entry.status === "fulfilled" ? entry.value : []
+  );
+  const deduped = Array.from(new Map(signals.map((s) => [`${s.source}-${s.title}`, s])).values()).slice(
+    0,
+    MAX_NEWS_SIGNALS
+  );
+  const snapshot: DailyNewsSnapshot = {
+    date: today,
+    generatedAt: new Date(now).toISOString(),
+    signals: deduped,
+  };
+  writeNewsCache(snapshot);
+  return deduped;
+}
+
+const buildHistoryContext = (summary: SummaryStats[], recentData: MarketDataPoint[] | undefined): string => {
+  if (!recentData?.length) return "Ingen historikk tilgjengelig.";
+  const symbols = summary.map((s) => s.symbol);
+  const first = recentData[0];
+  const last = recentData[recentData.length - 1];
+
+  const rows = symbols.map((symbol) => {
+    const from = first[symbol];
+    const to = last[symbol];
+    if (typeof from !== "number" || typeof to !== "number" || from === 0) return `${symbol}: mangler data`;
+    const pct = ((to - from) / from) * 100;
+    return `${symbol}: start ${from.toFixed(2)}, slutt ${to.toFixed(2)}, endring ${pct.toFixed(2)}%`;
+  });
+  return rows.join("\n");
+};
+
+type TurningPoint = {
+  symbol: string;
+  date: string;
+  prevMovePct: number;
+  newMovePct: number;
+  swingPct: number;
+};
+
+const detectTurningPoints = (
+  summary: SummaryStats[],
+  recentData: MarketDataPoint[] | undefined
+): TurningPoint[] => {
+  if (!recentData || recentData.length < 4) return [];
+  const symbols = summary.map((s) => s.symbol);
+  const points: TurningPoint[] = [];
+
+  for (const symbol of symbols) {
+    let strongest: TurningPoint | null = null;
+    for (let i = 2; i < recentData.length; i++) {
+      const p0 = recentData[i - 2]?.[symbol];
+      const p1 = recentData[i - 1]?.[symbol];
+      const p2 = recentData[i]?.[symbol];
+      if (typeof p0 !== "number" || typeof p1 !== "number" || typeof p2 !== "number") continue;
+      if (p0 === 0 || p1 === 0) continue;
+      const prevMovePct = ((p1 - p0) / p0) * 100;
+      const newMovePct = ((p2 - p1) / p1) * 100;
+      const isSignFlip = Math.sign(prevMovePct) !== Math.sign(newMovePct);
+      if (!isSignFlip) continue;
+      const swingPct = Math.abs(prevMovePct - newMovePct);
+      if (swingPct < 1.2) continue;
+
+      const candidate: TurningPoint = {
+        symbol,
+        date: String(recentData[i].timestamp),
+        prevMovePct,
+        newMovePct,
+        swingPct,
+      };
+      if (!strongest || candidate.swingPct > strongest.swingPct) strongest = candidate;
+    }
+    if (strongest) points.push(strongest);
+  }
+
+  return points.sort((a, b) => b.swingPct - a.swingPct).slice(0, 5);
+};
+
+const buildTurningPointContext = (
+  summary: SummaryStats[],
+  recentData: MarketDataPoint[] | undefined
+): string => {
+  const turningPoints = detectTurningPoints(summary, recentData);
+  if (turningPoints.length === 0) {
+    return "Ingen tydelige vendingstidspunkter over terskel funnet i valgt datasett.";
+  }
+  const nameBySymbol = new Map(summary.map((s) => [s.symbol, s.name]));
+  return turningPoints
+    .map((tp) => {
+      const name = nameBySymbol.get(tp.symbol) ?? tp.symbol;
+      return `${tp.date}: ${name} (${tp.symbol}) snudde fra ${tp.prevMovePct.toFixed(2)}% til ${tp.newMovePct.toFixed(
+        2
+      )}% (sving ${tp.swingPct.toFixed(2)}pp)`;
+    })
+    .join("\n");
+};
+
+const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
+
+const stripMarkdown = (value: string): string => value.replace(/[*_`#>-]/g, "").trim();
+
+const isWeakSection = (value: string): boolean => {
+  const text = normalizeWhitespace(stripMarkdown(value)).toLowerCase();
+  if (!text || text.length < MIN_SECTION_LENGTH) return true;
+  const genericPatterns = [
+    "markedet har de siste",
+    "analysen viser at",
+    "vi ser at markedet",
+    "utsiktene er usikre",
+  ];
+  return genericPatterns.some((p) => text.startsWith(p));
+};
+
+const parseSections = (raw: string): { comment: string; outlook: string } => {
+  const cleaned = raw.trim();
+  const commentMatch = cleaned.match(/(?:Analytikerkonsensus|Markedskommentar):\s*([\s\S]*?)(?:\n\s*(?:Sektoranbefaling nå|Utsikter for neste periode):|$)/i);
+  const outlookMatch = cleaned.match(/(?:Sektoranbefaling nå|Utsikter for neste periode):\s*([\s\S]*)$/i);
+  const comment = normalizeWhitespace(stripMarkdown(commentMatch?.[1] ?? ""));
+  const outlook = normalizeWhitespace(stripMarkdown(outlookMatch?.[1] ?? ""));
+  if (comment || outlook) return { comment, outlook };
+
+  const lines = cleaned.split("\n").map((l) => normalizeWhitespace(stripMarkdown(l))).filter(Boolean);
+  return {
+    comment: lines[0] ?? "",
+    outlook: lines.slice(1).join(" "),
+  };
+};
+
+const buildFallbackAnalysis = (
+  summary: SummaryStats[],
+  period: Period,
+  vix: VixMetrics
+): { comment: string; outlook: string } => {
+  const sorted = [...summary].sort((a, b) => b.percentChange - a.percentChange);
+  const leader = sorted[0];
+  const lagger = sorted[sorted.length - 1];
+  const vixSentence = isVixMaterial(vix)
+    ? ` VIX har begynt å bevege seg mer urolig, og det kan være et tidlig faresignal hvis den fortsetter opp.`
+    : "";
+  const comment = `Oppsummert fra dagens markedskommentarer: sentimentet er fortsatt forsiktig positivt, men mer følsomt for negative nyheter enn tidligere. I perioden ${period} har ${
+    leader?.name ?? "ukjent"
+  } vært sterkest, mens ${lagger?.name ?? "ukjent"} har hengt etter.${vixSentence}`;
+  const outlook = isVixMaterial(vix)
+    ? `Sektoranbefaling nå: hold hovedvekt i teknologi og helse, og vær mer selektiv i energi til uroen roer seg. Hvis usikkerheten skyter opp, flytt mer mot defensive sektorer med stabile inntjeningstall.`
+    : `Sektoranbefaling nå: teknologi og industri ser mest attraktive ut nå, med nøytral vekt i energi. Stram inn risiko hvis energipriser hopper opp igjen eller markedsbredden svekkes videre.`;
+  return { comment, outlook };
+};
+
+const finalizeAnalysis = (
+  raw: string,
+  summary: SummaryStats[],
+  period: Period,
+  vix: VixMetrics
+): string => {
+  const parsed = parseSections(raw);
+  const fallback = buildFallbackAnalysis(summary, period, vix);
+  const comment = isWeakSection(parsed.comment) ? fallback.comment : parsed.comment;
+  let outlook = isWeakSection(parsed.outlook) ? fallback.outlook : parsed.outlook;
+  if (normalizeWhitespace(outlook).toLowerCase() === normalizeWhitespace(comment).toLowerCase()) {
+    outlook = fallback.outlook;
+  }
+  return `Analytikerkonsensus:\n${comment}\n\nSektoranbefaling nå:\n${outlook}`;
+};
+
+const isQuotaOrRateError = (message: string): boolean =>
+  /quota exceeded|rate limit|too many requests|resource exhausted/i.test(message);
+
+export const getMarketInsights = async (
+  summary: SummaryStats[], 
+  period: Period,
+  recentData?: MarketDataPoint[]
+): Promise<string> => {
+  try {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 
+                   import.meta.env.GEMINI_API_KEY || 
+                   (typeof process !== 'undefined' && process.env.GEMINI_API_KEY) || 
+                   (typeof process !== 'undefined' && process.env.API_KEY);
+                   
+    if (!apiKey || apiKey === 'lim_inn_din_nøkkel_her') {
       return "Legg til GEMINI_API_KEY i .env for å aktivere AI-markedsrapport.";
     }
-    const ai = new GoogleGenAI({ apiKey });
-    
-    const context = summary.map(s => `${s.name} (${s.symbol}): ${s.percentChange}% endring`).join(', ');
-    
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Du er en Senior Markedsanalytiker hos "Gemini AS". 
-                 Analyser følgende markedsdata for de valgte instrumentene i perioden "${period}": ${context}.
-                 
-                 Krav til svaret:
-                 1. Gi en kortfattet og sylskarp kommentar om utviklingen i denne perioden (hvem leder/lagger og kort om hvorfor).
-                 2. Gi et konkret utsyn for hva vi kan forvente i NESTE periode basert på nåværende momentum og generelt makrobilde.
-                 3. Svaret skal være på profesjonelt norsk og holdes under 100 ord totalt.`,
-      config: {
-        temperature: 0.7,
-        maxOutputTokens: 250,
-      }
-    });
 
-    return response.text || "Kunne ikke generere analyse for øyeblikket.";
-  } catch (error) {
+    const sorted = [...summary].sort((a, b) => b.percentChange - a.percentChange);
+    const leaders = sorted.slice(0, 2).map((s) => `${s.name} (${s.symbol}, ${s.percentChange.toFixed(2)}%)`).join(", ");
+    const laggers = sorted.slice(-2).map((s) => `${s.name} (${s.symbol}, ${s.percentChange.toFixed(2)}%)`).join(", ");
+    const context = summary.map(s => `${s.name} (${s.symbol}): ${s.percentChange.toFixed(2)}%`).join(", ");
+
+    const [newsSignals, vix] = await Promise.all([getDailyNewsSignals(), fetchVixMetrics()]);
+    const newsContext = newsSignals.length
+      ? newsSignals.map((s, i) => `${i + 1}. [${s.source}] ${s.title}`).join("\n")
+      : "Ingen tilgjengelige åpne nyhetssignaler i dag (bruk prisdata som hovedkilde).";
+    const historyContext = buildHistoryContext(summary, recentData);
+    const turningPointContext = buildTurningPointContext(summary, recentData);
+
+    const prompt = `Du er en erfaren markedskommentator for hobbyinvestorer.
+Mål: levere to tydelige kommentarer:
+1) oppsummering av ledende analytiker-/nyhetssignaler,
+2) konkret sektoranbefaling basert på indeksene i datasettet.
+
+Data:
+- Periode: ${period}
+- Instrumenter: ${context}
+- Ledere: ${leaders}
+- Laggere: ${laggers}
+- VIX (alltid risikoanker): nivå ${formatNum(vix.last)}, 1d ${formatNum(vix.oneDayChangePct)}%, 3d ${formatNum(vix.threeDayChangePct)}%, regime ${vix.regime}
+
+Kurvesignaler:
+${historyContext}
+
+Viktige vendingstidspunkter i kurvene (må kommenteres konkret):
+${turningPointContext}
+
+Dagens nyhets-/ekspertsignaler (åpne kilder, daglig snapshot):
+${newsContext}
+
+Arbeidsmetode:
+1) Finn de 3 viktigste spørsmålene investorer bør stille nå.
+2) Forkast minst ett irrelevant spørsmål kort.
+3) Svar kun med evidens fra data over.
+4) Hvis kurve og narrativ divergerer, marker latent stress tydelig.
+5) Bruk enkelt språk uten teknisk sjargong, forklar årsak-virkning kort.
+6) Ikke nevn VIX automatisk. Nevn VIX kun hvis det er tydelig relevant nå (for eksempel ved rask oppgang eller nivå rundt/over 20).
+7) Kommenter minst 2 konkrete vendingstidspunkter med dato og hva som snudde.
+8) Gi én tydelig anbefalt sektor nå, med kort begrunnelse og én risikofaktor.
+
+Svarformat (nøyaktig):
+Analytikerkonsensus:
+<3-4 setninger i folkelig språk om hva markedseksperter peker på nå, koblet mot data>
+
+Sektoranbefaling nå:
+<2-3 setninger med én sektor å prioritere nå, hvorfor, og hva som kan velte caset>
+`;
+
+    const requestBody = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.45,
+        maxOutputTokens: 320,
+      },
+    };
+
+    const attempts: { apiVersion: ApiVersion; model: string }[] = [
+      { apiVersion: "v1beta", model: GEMINI_MODEL_PRIMARY },
+      { apiVersion: "v1", model: GEMINI_MODEL_PRIMARY },
+      ...GEMINI_MODEL_FALLBACKS.flatMap((model) => [
+        { apiVersion: "v1" as const, model },
+        { apiVersion: "v1beta" as const, model },
+      ]),
+    ];
+
+    let lastError = "";
+    for (const { apiVersion, model } of attempts) {
+      const url = buildGenerateContentUrl(apiVersion, model, apiKey);
+      const result = await tryGenerateContent(url, requestBody);
+      if (result.ok) return finalizeAnalysis(result.text, summary, period, vix);
+      lastError = result.message;
+      if (isQuotaOrRateError(lastError)) {
+        // Fall back to deterministic local analysis when quota is exhausted.
+        return finalizeAnalysis("", summary, period, vix);
+      }
+      if (!result.notFound) break;
+    }
+
+    throw new Error(lastError || "Ukjent feil fra Gemini API");
+  } catch (error: any) {
     console.error("AI Insight error:", error);
-    return "Markedsanalysen er midlertidig utilgjengelig. Vennligst sjekk tilkoblingen.";
+    return `Markedsanalysen er midlertidig utilgjengelig. (Feil: ${error?.message || 'Tilkoblingsfeil'})`;
   }
 };

@@ -2,6 +2,13 @@ import React from 'react';
 import type { AIInsightPanelProps } from './types';
 
 export const AIInsightPanel: React.FC<AIInsightPanelProps> = ({ aiInsight, period }) => {
+  const raw = (aiInsight || '').trim();
+  const commentMatch = raw.match(/(?:Analytikerkonsensus|Markedskommentar):\s*([\s\S]*?)(?:\n\s*(?:Sektoranbefaling nå|Utsikter for neste periode):|$)/i);
+  const outlookMatch = raw.match(/(?:Sektoranbefaling nå|Utsikter for neste periode):\s*([\s\S]*)$/i);
+  const fallbackParts = raw.split('\n').filter(Boolean);
+  const commentText = (commentMatch?.[1] || fallbackParts[0] || '').trim();
+  const outlookText = (outlookMatch?.[1] || fallbackParts.slice(1).join(' ') || '').trim();
+
   return (
     <div className="relative group">
       <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-10 group-hover:opacity-20 transition duration-1000 group-hover:duration-200"></div>
@@ -28,19 +35,19 @@ export const AIInsightPanel: React.FC<AIInsightPanelProps> = ({ aiInsight, perio
             <div className="space-y-2">
               <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                Markedskommentar
+                Analytikerkonsensus
               </div>
               <p className="text-slate-300 text-sm leading-relaxed font-medium">
-                {aiInsight ? aiInsight.split('\n')[0] : "Genererer analyse av nåværende markedssituasjon..."}
+                {commentText || "Genererer analyse av nåværende markedssituasjon..."}
               </p>
             </div>
             <div className="space-y-2 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
               <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <svg className="w-3 h-3 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                Utsikter for neste periode
+                Sektoranbefaling nå
               </div>
               <p className="text-slate-400 text-sm leading-relaxed italic">
-                {aiInsight && aiInsight.includes('\n') ? aiInsight.split('\n').slice(1).join(' ') : "Vurderer makroøkonomiske utsikter..."}
+                {outlookText || "Vurderer makroøkonomiske utsikter..."}
               </p>
             </div>
           </div>
