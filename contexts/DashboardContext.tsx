@@ -1,6 +1,7 @@
 import React, { createContext, useContext, ReactNode, useState } from 'react';
 import { Period, Interval, MarketDataPoint, SummaryStats } from '../types';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
+import { TICKERS } from '../constants';
 
 export type DashboardTab = 'dashboard' | 'analysis';
 
@@ -17,9 +18,11 @@ interface DashboardContextType {
   activeTab: DashboardTab;
   isDarkMode: boolean;
   drilldownSector: string | null; // Symbolet til sektoren som er i drilldown (f.eks. 'XLK')
+  activeDrilldownTickers: string[]; // Tickers som faktisk skal vises i grafen under drilldown
   setActiveTab: (tab: DashboardTab) => void;
   toggleDarkMode: () => void;
   setDrilldownSector: (symbol: string | null) => void;
+  toggleDrilldownTicker: (symbol: string) => void;
   handleTickerToggle: (symbol: string) => void;
   handlePeriodChange: (period: Period) => void;
   handleIntervalChange: (interval: Interval) => void;
@@ -86,14 +89,32 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
       // Aktiverer drilldown (Fokus-modus)
       setPreviousTickers(state.selectedTickers);
       setDrilldownSectorState(symbol);
-      setSelectedTickers([symbol]); // Isoler sektoren i grafen
+      
+      // Finn alle barn (ETF-er) for denne sektoren
+      const childTickers = TICKERS.filter(t => t.parentSymbol === symbol).map(t => t.symbol);
+      
+      // Vi setter ALLE i selectedTickers slik at data lastes inn for alle.
+      // Vi skal nå bruke en ny state 'activeDrilldownTickers' for å styre hvem som faktisk VISES i grafen.
+      setSelectedTickers([symbol, ...childTickers]);
+      setActiveDrilldownTickers([symbol]); // Kun sektoren vises initialt
     } else {
       // Deaktiverer drilldown (Gjenopprett)
       setDrilldownSectorState(null);
+      setActiveDrilldownTickers([]);
       if (previousTickers.length > 0) {
         setSelectedTickers(previousTickers);
       }
     }
+  };
+
+  const [activeDrilldownTickers, setActiveDrilldownTickers] = useState<string[]>([]);
+
+  const toggleDrilldownTicker = (symbol: string) => {
+    setActiveDrilldownTickers(prev => 
+      prev.includes(symbol) 
+        ? prev.filter(s => s !== symbol) 
+        : [...prev, symbol]
+    );
   };
 
   const value: DashboardContextType = {
@@ -103,9 +124,11 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     activeTab,
     isDarkMode,
     drilldownSector,
+    activeDrilldownTickers,
     setActiveTab,
     toggleDarkMode,
     setDrilldownSector,
+    toggleDrilldownTicker,
     handleTickerToggle,
     handlePeriodChange,
     handleIntervalChange,

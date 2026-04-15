@@ -143,9 +143,11 @@ const MainDashboard: React.FC<DashboardProps> = ({
               </ErrorBoundary>
             )}
 
-            <ErrorBoundary title="Kunne ikke laste tabellen">
-              <MarketSummaryTable summary={summary} />
-            </ErrorBoundary>
+            {!drilldownSector && (
+              <ErrorBoundary title="Kunne ikke laste tabellen">
+                <MarketSummaryTable summary={summary} />
+              </ErrorBoundary>
+            )}
           </>
         ) : (
           <ErrorBoundary title="Kunne ikke laste analyseboardet">

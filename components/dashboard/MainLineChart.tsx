@@ -14,10 +14,18 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
   showSMA = false,
   smaWindow = 20
 }) => {
-  const { isDarkMode } = useDashboard();
+  const { isDarkMode, drilldownSector, activeDrilldownTickers } = useDashboard();
   const [rangeSelection, setRangeSelection] = useState<ChartRangeSelection | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
+
+  // Bestem hvilke tickers som faktisk skal vises
+  const visibleTickers = useMemo(() => {
+    if (drilldownSector && activeDrilldownTickers.length > 0) {
+      return activeDrilldownTickers;
+    }
+    return activeTickers;
+  }, [activeTickers, drilldownSector, activeDrilldownTickers]);
 
   const gridColor = isDarkMode ? "#1e293b" : "#e2e8f0";
   const axisColor = isDarkMode ? "#475569" : "#64748b";
@@ -28,7 +36,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
     let maxVix = 0;
 
     data.forEach(d => {
-      activeTickers.forEach(sym => {
+      visibleTickers.forEach(sym => {
         const val = Math.abs(typeof d[sym] === 'number' ? d[sym] as number : 0);
         if (sym === '^VIX') {
           if (val > maxVix) maxVix = val;
@@ -51,7 +59,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
     });
 
     if (showSMA) {
-      activeTickers.forEach(sym => {
+      visibleTickers.forEach(sym => {
         const key = sym === '^VIX' ? '^VIX_SCALED' : sym;
         const prices = enrichedData.map(d => typeof d[key] === 'number' ? d[key] as number : 0);
         const smaValues = calculateSMA(prices, smaWindow);
@@ -64,7 +72,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
     }
 
     return { chartData: enrichedData, vixScaleFactor: factor };
-  }, [data, activeTickers, showSMA, smaWindow]);
+  }, [data, visibleTickers, showSMA, smaWindow]);
 
   const handleMouseDown = (e: any) => {
     if (e && e.activeTooltipIndex != null) {
@@ -156,7 +164,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
           />
         )}
 
-        {activeTickers.map(sym => {
+        {visibleTickers.map(sym => {
         const ticker = TICKERS.find(t => t.symbol === sym);
         if (!ticker) return null;
         

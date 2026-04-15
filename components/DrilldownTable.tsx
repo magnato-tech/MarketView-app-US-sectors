@@ -9,8 +9,11 @@ export const DrilldownTable: React.FC = () => {
     drilldownSector, 
     summary, 
     selectedTickers, 
+    activeDrilldownTickers,
+    toggleDrilldownTicker,
     handleTickerToggle, 
-    isDarkMode 
+    isDarkMode,
+    loading 
   } = useDashboard();
 
   if (!drilldownSector) return null;
@@ -18,10 +21,14 @@ export const DrilldownTable: React.FC = () => {
   const parentTicker = TICKERS.find(t => t.symbol === drilldownSector);
   const childTickers = TICKERS.filter(t => t.parentSymbol === drilldownSector);
   
-  // Filtrer summary for å kun vise instrumenter som tilhører denne drilldownen
-  const drilldownSummary = summary.filter(s => 
-    s.symbol === drilldownSector || childTickers.some(ct => ct.symbol === s.symbol)
-  );
+  // Finn alle barn (ETF-er) for denne sektoren
+  const allDrilldownSymbols = [drilldownSector, ...childTickers.map(ct => ct.symbol)];
+  
+  // Filtrer summary for å vise ALLE instrumenter som tilhører denne drilldownen, 
+  // uavhengig av om de er valgt i grafen eller ikke.
+  const drilldownSummary = summary.filter(s => allDrilldownSymbols.includes(s.symbol));
+
+  const isLoadingDrilldown = loading && drilldownSummary.length < allDrilldownSymbols.length;
 
   return (
     <div className={`rounded-2xl overflow-hidden shadow-xl border transition-all duration-300 ${
@@ -37,10 +44,19 @@ export const DrilldownTable: React.FC = () => {
               Sektordetaljer: {parentTicker?.name || drilldownSector}
             </h3>
             <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-              Velg spesifikke instrumenter for å sammenligne med sektoren
+              {isLoadingDrilldown ? 'Laster inn ETF-data...' : 'Velg spesifikke instrumenter for å sammenligne med sektoren'}
             </p>
           </div>
         </div>
+        {isLoadingDrilldown && (
+          <div className="flex items-center gap-2 text-blue-500 text-xs font-bold animate-pulse">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Henter data...
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -61,17 +77,16 @@ export const DrilldownTable: React.FC = () => {
             {drilldownSummary.map((s) => {
               const isParent = s.symbol === drilldownSector;
               return (
-                <tr 
-                  key={s.symbol} 
                   className={`transition-colors group ${
                     isDarkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'
-                  } ${isParent ? (isDarkMode ? 'bg-blue-900/10' : 'bg-blue-50/50') : ''}`}
-                >
+                  } ${isParent ? (isDarkMode ? 'bg-blue-900/10' : 'bg-blue-50/50') : ''} ${
+                    !activeDrilldownTickers.includes(s.symbol) ? 'opacity-50' : ''
+                  }`}
                   <td className="px-6 py-4">
                     <input
                       type="checkbox"
-                      checked={selectedTickers.includes(s.symbol)}
-                      onChange={() => handleTickerToggle(s.symbol)}
+                      checked={activeDrilldownTickers.includes(s.symbol)}
+                      onChange={() => toggleDrilldownTicker(s.symbol)}
                       className={`w-4 h-4 rounded appearance-none border transition-all cursor-pointer ${
                         isDarkMode 
                           ? 'border-slate-700 bg-slate-800 checked:bg-blue-600' 
