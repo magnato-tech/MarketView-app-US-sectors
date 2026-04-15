@@ -26,6 +26,43 @@ const intervalMap: Record<Interval, string> = {
   '1mo': '1mo',
 };
 
+// --- In-memory Cache Logic ---
+
+interface CacheEntry {
+  series: PriceSeries;
+  meta: { shortName?: string; longName?: string };
+  timestamp: number;
+}
+
+const cache: Map<string, CacheEntry> = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutter
+const MAX_CACHE_SIZE = 100; // Begrens antall instrumenter i minnet
+
+const getCacheKey = (symbol: string, range: string, interval: string) => 
+  `${symbol}:${range}:${interval}`;
+
+const purgeOldCache = () => {
+  if (cache.size <= MAX_CACHE_SIZE) return;
+  
+  // Slett den eldste oppføringen basert på timestamp (LRU-ish)
+  let oldestKey: string | null = null;
+  let oldestTime = Infinity;
+  
+  for (const [key, entry] of cache.entries()) {
+    if (entry.timestamp < oldestTime) {
+      oldestTime = entry.timestamp;
+      oldestKey = key;
+    }
+  }
+  
+  if (oldestKey) cache.delete(oldestKey);
+};
+
+// --- Batching Logic ---
+
+const BATCH_SIZE = 5;
+const BATCH_DELAY_MS = 200;
+
 export const fetchMarketData = async (
   symbols: string[],
   period: Period,
@@ -37,7 +74,16 @@ export const fetchMarketData = async (
     const bySymbol: Record<string, PriceSeries> = {};
     const metaBySymbol: Record<string, { shortName?: string; longName?: string }> = {};
 
-    const fetchWithRetry = async (symbol: string, attempt = 0): Promise<void> => {
+    const fetchSingleSymbol = async (symbol: string, attempt = 0): Promise<void> => {
+      const cacheKey = getCacheKey(symbol, range, intv);
+      const cached = cache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+        bySymbol[symbol] = cached.series;
+        metaBySymbol[symbol] = cached.meta;
+        return;
+      }
+
       const path = `/api/yahoo/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${intv}&range=${range}`;
       try {
         const res = await fetch(path);
@@ -47,21 +93,36 @@ export const fetchMarketData = async (
         const json = await res.json() as YahooChartResponse;
         const series = parseChartJson(json);
         if (series) {
-          bySymbol[symbol] = series;
           const r = json.chart?.result?.[0];
-          if (r?.meta) metaBySymbol[symbol] = r.meta;
+          const meta = r?.meta || {};
+          
+          bySymbol[symbol] = series;
+          metaBySymbol[symbol] = meta;
+          
+          // Oppdater cache
+          cache.set(cacheKey, { series, meta, timestamp: Date.now() });
+          purgeOldCache();
         }
       } catch (err) {
         if (attempt < retries) {
           console.warn(`Retry ${attempt + 1} for ${symbol}...`);
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-          return fetchWithRetry(symbol, attempt + 1);
+          return fetchSingleSymbol(symbol, attempt + 1);
         }
         console.error(`Yahoo fetch failed for ${symbol} after ${retries + 1} attempts:`, err);
       }
     };
 
-    await Promise.all(symbols.map(symbol => fetchWithRetry(symbol)));
+    // Batching: Del opp symbols i grupper for å unngå API-overbelastning
+    for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+      const batch = symbols.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(symbol => fetchSingleSymbol(symbol)));
+      
+      // Legg inn en liten pause mellom batches hvis det er flere igjen
+      if (i + BATCH_SIZE < symbols.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
 
     const data = mergeSeriesToChartData(symbols, bySymbol);
     const summary = buildSummary(symbols, bySymbol, metaBySymbol);

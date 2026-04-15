@@ -41,14 +41,14 @@ export const AnalysisBoard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Technical Analysis Chart */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-slate-900/50 dark:bg-slate-900/50 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 shadow-xl transition-colors duration-300">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h3 className="text-lg font-bold text-white">Teknisk Trendanalyse</h3>
-            <p className="text-xs text-slate-500">Relativ avkastning med Simple Moving Average (SMA)</p>
+            <h3 className="text-lg font-bold text-white dark:text-white light:text-slate-900">Teknisk Trendanalyse</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-500 light:text-slate-400">Relativ avkastning med Simple Moving Average (SMA)</p>
           </div>
-          <div className="flex items-center gap-3 bg-slate-950 p-1 rounded-lg border border-slate-800">
-            <span className="text-[10px] font-black text-slate-500 uppercase px-2">SMA Vindu:</span>
+          <div className="flex items-center gap-3 bg-slate-950 dark:bg-slate-950 light:bg-slate-100 p-1 rounded-lg border border-slate-800 dark:border-slate-800 light:border-slate-200">
+            <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase px-2">SMA Vindu:</span>
             {[10, 20, 50, 150, 200].map(w => (
               <button
                 key={w}
@@ -56,7 +56,7 @@ export const AnalysisBoard: React.FC = () => {
                 className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
                   smaWindow === w && showSMA
                     ? 'bg-blue-600 text-white' 
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-400 dark:text-slate-400 light:text-slate-500 hover:text-slate-200 dark:hover:text-slate-200 light:hover:text-slate-900'
                 }`}
               >
                 {w}
@@ -83,18 +83,18 @@ export const AnalysisBoard: React.FC = () => {
         <AIInsightPanel aiInsight={aiInsight} period={period} />
 
         {/* Volatility / Stats Panel */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <h3 className="text-lg font-bold text-white mb-4">Sektor-statistikk</h3>
+        <div className="bg-slate-900/50 dark:bg-slate-900/50 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 shadow-xl transition-colors duration-300">
+          <h3 className="text-lg font-bold text-white dark:text-white light:text-slate-900 mb-4">Sektor-statistikk</h3>
           <div className="space-y-4">
             {summary.map(s => (
-              <div key={s.symbol} className="flex items-center justify-between p-3 bg-slate-950/50 rounded-xl border border-slate-800/50">
+              <div key={s.symbol} className="flex items-center justify-between p-3 bg-slate-950/50 dark:bg-slate-950/50 light:bg-slate-50 rounded-xl border border-slate-800/50 dark:border-slate-800/50 light:border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }}></div>
-                  <span className="text-sm font-medium text-slate-200">{s.name}</span>
+                  <span className="text-sm font-medium text-slate-200 dark:text-slate-200 light:text-slate-700">{s.name}</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <div className="text-[10px] text-slate-500 uppercase font-black">Avkastning</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase font-black">Avkastning</div>
                     <div className={`text-sm font-bold ${s.percentChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {formatPercent(s.percentChange)}
                     </div>

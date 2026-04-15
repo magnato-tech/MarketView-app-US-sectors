@@ -33,9 +33,9 @@ export function ChartTooltip({
   const sorted = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
   return (
-    <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700 p-3 rounded-lg shadow-2xl text-xs min-w-[180px]">
-      <div className="flex justify-between items-center mb-1 border-b border-slate-800 pb-1">
-        <p className="font-bold text-slate-300">{label}</p>
+    <div className="bg-slate-900/95 dark:bg-slate-900/95 light:bg-white/95 backdrop-blur-md border border-slate-700 dark:border-slate-700 light:border-slate-200 p-3 rounded-lg shadow-2xl text-xs min-w-[180px] transition-colors duration-300">
+      <div className="flex justify-between items-center mb-1 border-b border-slate-800 dark:border-slate-800 light:border-slate-100 pb-1">
+        <p className="font-bold text-slate-300 dark:text-slate-300 light:text-slate-900">{label}</p>
         {isRangeMode && (
           <span className="text-[9px] bg-blue-600/20 text-blue-400 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">
             Periodevalg
@@ -48,11 +48,11 @@ export function ChartTooltip({
           Utvikling fra {data[startIdx]?.timestamp}
         </p>
       ) : baseRow ? (
-        <p className="text-[10px] text-slate-500 mb-2">
+        <p className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 mb-2">
           Tall vs. start av markering ({baseRow.timestamp})
         </p>
       ) : (
-        <p className="text-[10px] text-slate-500 mb-2">Tall vs. start av Yahoo-periode</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 mb-2">Tall vs. start av Yahoo-periode</p>
       )}
 
       <div className="space-y-1.5">
@@ -85,7 +85,7 @@ export function ChartTooltip({
             <div key={`${key}-${index}`} className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                <span className="text-slate-400">
+                <span className="text-slate-400 dark:text-slate-400 light:text-slate-600">
                   {entry.name}
                   {isVix && <span className="text-[8px] ml-1 opacity-50">(skalert)</span>}:
                 </span>

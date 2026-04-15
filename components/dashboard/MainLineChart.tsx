@@ -5,6 +5,7 @@ import {
 import { TICKERS } from '../../constants';
 import type { MainLineChartProps, ChartRangeSelection } from './types';
 import { calculateSMA } from '../../services/analysisService';
+import { useDashboard } from '../../contexts/DashboardContext';
 
 export const MainLineChart: React.FC<MainLineChartProps> = ({ 
   data, 
@@ -13,9 +14,13 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
   showSMA = false,
   smaWindow = 20
 }) => {
+  const { isDarkMode } = useDashboard();
   const [rangeSelection, setRangeSelection] = useState<ChartRangeSelection | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
+
+  const gridColor = isDarkMode ? "#1e293b" : "#e2e8f0";
+  const axisColor = isDarkMode ? "#475569" : "#64748b";
 
   const { chartData, vixScaleFactor } = useMemo(() => {
     // 1. Calculate VIX scale factor
@@ -113,10 +118,10 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={() => setIsDragging(false)}
       >
-        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
         <XAxis
           dataKey="timestamp"
-          stroke="#475569"
+          stroke={axisColor}
           fontSize={10}
           tickLine={false}
           axisLine={false}
@@ -124,7 +129,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
           fontFamily="monospace"
         />
         <YAxis
-          stroke="#475569"
+          stroke={axisColor}
           fontSize={10}
           tickLine={false}
           axisLine={false}

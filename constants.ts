@@ -25,6 +25,18 @@ export const TICKERS: TickerInfo[] = [
   { symbol: 'XLB', name: 'Materialer', category: 'Sector', group: 'Innsatsvarer', color: '#84cc16' },
   { symbol: 'DBC', name: 'Råvarer', category: 'Sector', group: 'Innsatsvarer', color: '#65a30d' },
   { symbol: 'GLD', name: 'Edelmetaller', category: 'Sector', group: 'Innsatsvarer', color: '#facc15' },
+
+  // --- Drilldown ETFs (Initial set for testing) ---
+  
+  // Teknologi (XLK)
+  { symbol: 'SOXX', name: 'Semiconductors', category: 'ETF', parentSymbol: 'XLK', color: '#34d399' },
+  { symbol: 'SKYY', name: 'Cloud Computing', category: 'ETF', parentSymbol: 'XLK', color: '#60a5fa' },
+  { symbol: 'CIBR', name: 'Cybersecurity', category: 'ETF', parentSymbol: 'XLK', color: '#818cf8' },
+  
+  // Energi (XLE)
+  { symbol: 'XOP', name: 'Oil & Gas Expl.', category: 'ETF', parentSymbol: 'XLE', color: '#fb923c' },
+  { symbol: 'TAN', name: 'Solar Energy', category: 'ETF', parentSymbol: 'XLE', color: '#fbbf24' },
+  { symbol: 'ICLN', name: 'Clean Energy', category: 'ETF', parentSymbol: 'XLE', color: '#4ade80' },
 ];
 
 export const PERIODS = ['1d', '5d', '2w', '1mo', '2mo', '3mo', '6mo', '1y', '2y', '5y'] as const;

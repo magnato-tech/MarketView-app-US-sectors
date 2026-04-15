@@ -11,6 +11,7 @@ import { AIInsightPanel } from './dashboard/AIInsightPanel';
 import { MarketSummaryTable } from './dashboard/MarketSummaryTable';
 import { MainLineChart } from './dashboard/MainLineChart';
 import { RelativeAvkastningPanel } from './dashboard/RelativeAvkastningPanel';
+import { DrilldownTable } from './DrilldownTable';
 import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { ErrorBoundary } from './ErrorBoundary';
 import { AnalysisBoard } from './AnalysisBoard';
@@ -27,15 +28,17 @@ const MainDashboard: React.FC<DashboardProps> = ({
   const { 
     data, summary, loading, aiInsight, 
     period, onPeriodChange, interval, onIntervalChange,
-    activeTickers, activeTab 
+    activeTickers, activeTab, isDarkMode, drilldownSector 
   } = useDashboard();
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-950 min-h-[50vh] lg:min-h-0">
+      <div className={`flex-1 flex items-center justify-center min-h-[50vh] lg:min-h-0 transition-colors duration-300 ${
+        isDarkMode ? 'bg-slate-950' : 'bg-slate-50'
+      }`}>
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
-          <p className="text-slate-400 font-medium animate-pulse">Analyserer Markedsdata...</p>
+          <p className={`font-medium animate-pulse ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Analyserer Markedsdata...</p>
         </div>
       </div>
     );
@@ -73,7 +76,9 @@ const MainDashboard: React.FC<DashboardProps> = ({
 
   if (chartLayoutFullscreen) {
     return (
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-slate-950 p-3 lg:p-4 overflow-hidden">
+      <div className={`flex-1 flex flex-col min-h-0 min-w-0 p-3 lg:p-4 overflow-hidden transition-colors duration-300 ${
+        isDarkMode ? 'bg-slate-950' : 'bg-slate-50'
+      }`}>
         <div className="shrink-0 flex flex-col gap-3 mb-3">
           {periodIntervalBar}
         </div>
@@ -100,7 +105,9 @@ const MainDashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col lg:overflow-hidden">
-    <div className="flex-1 p-4 lg:p-8 bg-slate-950 overflow-y-auto min-h-screen lg:min-h-0 lg:overflow-y-auto">
+    <div className={`flex-1 p-4 lg:p-8 overflow-y-auto min-h-screen lg:min-h-0 lg:overflow-y-auto transition-colors duration-300 ${
+      isDarkMode ? 'bg-slate-950' : 'bg-slate-50'
+    }`}>
       <div className="max-w-7xl mx-auto space-y-6">
         
         <ErrorBoundary title="Kunne ikke laste header">
@@ -129,6 +136,12 @@ const MainDashboard: React.FC<DashboardProps> = ({
                 </ResponsiveContainer>
               </RelativeAvkastningPanel>
             </ErrorBoundary>
+
+            {drilldownSector && (
+              <ErrorBoundary title="Kunne ikke laste drilldown-tabellen">
+                <DrilldownTable />
+              </ErrorBoundary>
+            )}
 
             <ErrorBoundary title="Kunne ikke laste tabellen">
               <MarketSummaryTable summary={summary} />

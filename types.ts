@@ -5,8 +5,9 @@ export type Interval = '1d' | '1wk' | '1mo';
 export interface TickerInfo {
   symbol: string;
   name: string;
-  category: 'Index' | 'Sector';
+  category: 'Index' | 'Sector' | 'ETF';
   group?: string;
+  parentSymbol?: string; // For drilldown (f.eks. 'XLK' for en teknologi-ETF)
   color: string;
 }
 

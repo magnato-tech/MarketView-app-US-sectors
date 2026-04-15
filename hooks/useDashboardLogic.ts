@@ -49,6 +49,7 @@ export const useDashboardLogic = (initialTickers: string[]) => {
     handleTickerToggle,
     handlePeriodChange,
     handleIntervalChange,
-    refreshData
+    refreshData,
+    setSelectedTickers
   };
 };
