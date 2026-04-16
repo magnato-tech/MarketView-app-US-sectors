@@ -76,7 +76,10 @@ export const calculateRangeSummary = (
       const prices = data.map(d => d[s.symbol] as number).filter(v => typeof v === 'number' && !isNaN(v));
       const startPrice = prices[0] || 0;
       const endPrice = prices[prices.length - 1] || 0;
-      const changePct = startPrice !== 0 ? ((endPrice - startPrice) / startPrice) * 100 : 0;
+      
+      // Vi bruker s.percentChange direkte fra SummaryStats, da den er beregnet 
+      // korrekt mot første datapunkt i useMarketData/buildSummary.
+      const changePct = s.percentChange;
       
       const vol = calculateVolatility(prices);
       const mdd = calculateMaxDrawdown(prices);
@@ -92,17 +95,17 @@ export const calculateRangeSummary = (
         relativeStrength: isFinite(rs) ? parseFloat(rs.toFixed(2)) : 0
       };
 
-    return {
-      symbol: s.symbol,
-      name: s.name,
-      startPrice,
-      endPrice,
-      changePct: parseFloat(changePct.toFixed(2)),
-      color: s.color,
-      isBenchmark: s.symbol === benchmarkSymbol,
-      metrics
-    };
-  });
+      return {
+        symbol: s.symbol,
+        name: s.name,
+        startPrice,
+        endPrice,
+        changePct: parseFloat(changePct.toFixed(2)),
+        color: s.color,
+        isBenchmark: s.symbol === benchmarkSymbol,
+        metrics
+      };
+    });
 
   // Sorter og sett rank basert på changePct
   return rows
