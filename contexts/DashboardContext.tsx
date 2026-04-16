@@ -34,13 +34,11 @@ interface DashboardContextType {
     showSMA: boolean;
     smaWindow: number;
     showLiquidityFlow: boolean;
-    useDefaultSelection: boolean;
   };
   setAnalysisSettings: React.Dispatch<React.SetStateAction<{
     showSMA: boolean;
     smaWindow: number;
     showLiquidityFlow: boolean;
-    useDefaultSelection: boolean;
   }>>;
 }
 
@@ -58,8 +56,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
   const [analysisSettings, setAnalysisSettings] = useState({
     showSMA: true,
     smaWindow: 20,
-    showLiquidityFlow: false,
-    useDefaultSelection: true
+    showLiquidityFlow: false
   });
   
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {

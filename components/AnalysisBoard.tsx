@@ -9,19 +9,7 @@ import { formatPercent } from '../utils/formatters';
 
 export const AnalysisBoard: React.FC = () => {
   const { data, summary, aiInsight, period, activeTickers, analysisSettings, setAnalysisSettings } = useDashboard();
-  const { showSMA, smaWindow, showLiquidityFlow, useDefaultSelection } = analysisSettings;
-
-  // Standardutvalg for analyse: Kun ankerindekser (S&P 500, Nasdaq 100, VIX)
-  const defaultAnalysisSymbols = ['^GSPC', '^NDX', '^VIX'];
-  
-  // Finn hvilke av standard-tickere som faktisk er tilgjengelige i data/summary
-  const availableDefaults = summary
-    .filter(s => defaultAnalysisSymbols.includes(s.symbol))
-    .map(s => s.symbol);
-
-  const analysisTickers = (useDefaultSelection && availableDefaults.length > 0)
-    ? availableDefaults
-    : activeTickers;
+  const { showSMA, smaWindow, showLiquidityFlow } = analysisSettings;
 
   const handleSmaClick = (w: number) => {
     if (smaWindow === w && showSMA) {
@@ -29,11 +17,6 @@ export const AnalysisBoard: React.FC = () => {
     } else {
       setAnalysisSettings(prev => ({ ...prev, smaWindow: w, showSMA: true }));
     }
-  };
-
-  // Funksjon for å bytte standardutvalg som også husker valget
-  const toggleDefaultSelection = () => {
-    setAnalysisSettings(prev => ({ ...prev, useDefaultSelection: !prev.useDefaultSelection }));
   };
 
   const toggleLiquidityFlow = () => {
@@ -54,6 +37,7 @@ export const AnalysisBoard: React.FC = () => {
       data={data}
       anchorIndex={props.anchorIndex ?? null}
       rangeSelection={props.rangeSelection}
+      showLiquidityFlow={showLiquidityFlow}
     />
   );
 
@@ -67,18 +51,6 @@ export const AnalysisBoard: React.FC = () => {
             <p className="text-xs text-slate-500 dark:text-slate-500 light:text-slate-400">Relativ avkastning med Simple Moving Average (SMA)</p>
           </div>
           <div className="flex items-center gap-3 bg-slate-950 dark:bg-slate-950 light:bg-slate-100 p-1 rounded-lg border border-slate-800 dark:border-slate-800 light:border-slate-200">
-            <button
-              onClick={toggleDefaultSelection}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${
-                useDefaultSelection
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-slate-400 dark:text-slate-400 light:text-slate-500 hover:text-slate-200 dark:hover:text-slate-200 light:hover:text-slate-900'
-              }`}
-              title="Vis kun ankerindekser (S&P 500, Nasdaq, VIX)"
-            >
-              Ankerindekser
-            </button>
-            <div className="w-px h-4 bg-slate-800 dark:bg-slate-800 light:bg-slate-200 mx-1"></div>
             <button
               onClick={toggleLiquidityFlow}
               className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${
@@ -113,7 +85,7 @@ export const AnalysisBoard: React.FC = () => {
           <ResponsiveContainer width="100%" height="100%">
             <MainLineChart 
               data={data} 
-              activeTickers={analysisTickers} 
+              activeTickers={activeTickers} 
               onTooltipContent={renderTooltip}
               showSMA={showSMA}
               smaWindow={smaWindow}
