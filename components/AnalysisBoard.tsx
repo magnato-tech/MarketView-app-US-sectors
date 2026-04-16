@@ -11,6 +11,7 @@ export const AnalysisBoard: React.FC = () => {
   const { data, summary, aiInsight, period, activeTickers } = useDashboard();
   const [smaWindow, setSmaWindow] = useState(20);
   const [showSMA, setShowSMA] = useState(true);
+  const [showLiquidityFlow, setShowLiquidityFlow] = useState(false);
 
   const handleSmaClick = (w: number) => {
     if (smaWindow === w && showSMA) {
@@ -48,7 +49,20 @@ export const AnalysisBoard: React.FC = () => {
             <p className="text-xs text-slate-500 dark:text-slate-500 light:text-slate-400">Relativ avkastning med Simple Moving Average (SMA)</p>
           </div>
           <div className="flex items-center gap-3 bg-slate-950 dark:bg-slate-950 light:bg-slate-100 p-1 rounded-lg border border-slate-800 dark:border-slate-800 light:border-slate-200">
-            <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase px-2">SMA Vindu:</span>
+            <button
+              onClick={() => setShowLiquidityFlow(!showLiquidityFlow)}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${
+                showLiquidityFlow
+                  ? 'bg-indigo-600 text-white' 
+                  : 'text-slate-400 dark:text-slate-400 light:text-slate-500 hover:text-slate-200 dark:hover:text-slate-200 light:hover:text-slate-900'
+              }`}
+              title="Vis hver sektors andel av total handelsverdi"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="m17 17-5 5-5-5"/><path d="m7 7 5-5 5 5"/></svg>
+              Kapitalstrøm
+            </button>
+            <div className="w-px h-4 bg-slate-800 dark:bg-slate-800 light:bg-slate-200 mx-1"></div>
+            <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase px-2">SMA:</span>
             {[10, 20, 50, 150, 200].map(w => (
               <button
                 key={w}
@@ -73,6 +87,7 @@ export const AnalysisBoard: React.FC = () => {
               onTooltipContent={renderTooltip}
               showSMA={showSMA}
               smaWindow={smaWindow}
+              showLiquidityFlow={showLiquidityFlow}
             />
           </ResponsiveContainer>
         </div>

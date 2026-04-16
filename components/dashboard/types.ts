@@ -44,6 +44,7 @@ export type MainLineChartProps = {
   onTooltipContent: (props: { active?: boolean; payload?: RechartsTooltipPayloadItem[]; label?: string | number; rangeSelection?: ChartRangeSelection | null; anchorIndex?: number | null }) => React.ReactNode;
   showSMA?: boolean;
   smaWindow?: number;
+  showLiquidityFlow?: boolean;
 };
 
 export type SelectedInstrumentBadgesProps = {

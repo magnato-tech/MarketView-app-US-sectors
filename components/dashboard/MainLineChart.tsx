@@ -12,7 +12,8 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
   activeTickers, 
   onTooltipContent,
   showSMA = false,
-  smaWindow = 20
+  smaWindow = 20,
+  showLiquidityFlow = false
 }) => {
   const { isDarkMode, drilldownSector, activeDrilldownTickers } = useDashboard();
   const [rangeSelection, setRangeSelection] = useState<ChartRangeSelection | null>(null);
@@ -90,8 +91,29 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
       });
     }
 
+    if (showLiquidityFlow) {
+      visibleTickers.forEach(sym => {
+        if (sym === '^VIX') return;
+        
+        // Beregn rå andel % for hver dag
+        const shares = finalData.map(d => {
+          const total = typeof d['total_dollar_volume'] === 'number' ? d['total_dollar_volume'] as number : 0;
+          const sector = typeof d[`${sym}_dollar_volume`] === 'number' ? d[`${sym}_dollar_volume`] as number : 0;
+          return total > 0 ? (sector / total) * 100 : 0;
+        });
+
+        // Bruk 5-dagers SMA for å glatte ut kapitalstrømmen
+        const smoothedFlow = calculateSMA(shares, 5);
+        
+        finalData = finalData.map((d, i) => ({
+          ...d,
+          [`${sym}_FLOW`]: smoothedFlow[i]
+        }));
+      });
+    }
+
     return { chartData: finalData, vixScaleFactor: factor, maxVolume: currentMaxVolume };
-  }, [data, visibleTickers, showSMA, smaWindow]);
+  }, [data, visibleTickers, showSMA, smaWindow, showLiquidityFlow]);
 
   const handleMouseDown = (e: any) => {
     if (e && e.activeTooltipIndex != null) {
@@ -174,8 +196,14 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
           domain={[0, maxVolume * 4]} // Volum tar opp nederste 25%
           hide={true}
         />
+        <YAxis
+          yAxisId="flow"
+          orientation="right"
+          domain={[0, 100]} // Kapitalandel er 0-100%
+          hide={true}
+        />
         <Tooltip 
-          content={(props) => onTooltipContent({ ...props, rangeSelection, anchorIndex })} 
+          content={(props) => onTooltipContent({ ...props, rangeSelection, anchorIndex, showLiquidityFlow })} 
           active={anchorIndex !== null || isDragging ? true : undefined}
           cursor={{ stroke: isDarkMode ? '#334155' : '#e2e8f0', strokeWidth: 1 }}
         />
@@ -264,6 +292,26 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
               stroke={ticker.color}
               strokeWidth={1}
               strokeDasharray="5 5"
+              dot={false}
+              activeDot={false}
+              legendType="none"
+              animationDuration={1500}
+              connectNulls
+            />
+          );
+        }
+
+        if (showLiquidityFlow && sym !== '^VIX') {
+          lines.push(
+            <Line
+              yAxisId="flow"
+              key={`${sym}_FLOW`}
+              type="monotone"
+              dataKey={`${sym}_FLOW`}
+              name={`${ticker.name} (Kapitalstrøm)`}
+              stroke={ticker.color}
+              strokeWidth={1.5}
+              strokeDasharray="3 3"
               dot={false}
               activeDot={false}
               legendType="none"

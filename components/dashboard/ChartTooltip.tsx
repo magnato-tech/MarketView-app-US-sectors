@@ -10,6 +10,7 @@ export type ChartTooltipProps = {
   data: MarketDataPoint[];
   anchorIndex: number | null;
   rangeSelection?: ChartRangeSelection | null;
+  showLiquidityFlow?: boolean;
 };
 
 /**
@@ -28,7 +29,8 @@ export function ChartTooltip({
   label, 
   data, 
   anchorIndex,
-  rangeSelection 
+  rangeSelection,
+  showLiquidityFlow
 }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
 
@@ -40,9 +42,15 @@ export function ChartTooltip({
     ? data[startIdx] 
     : (anchorIndex != null && data[anchorIndex] ? data[anchorIndex] : null);
 
-  // Separer volum fra priskurver
+  // Separer volum og kapitalstrøm fra priskurver
   const volumeItems = payload.filter(p => String(p.dataKey).endsWith('_dollar_volume') || p.dataKey === 'total_dollar_volume');
-  const priceItems = payload.filter(p => !String(p.dataKey).endsWith('_dollar_volume') && p.dataKey !== 'total_dollar_volume' && !String(p.dataKey).endsWith('_SMA'));
+  const flowItems = payload.filter(p => String(p.dataKey).endsWith('_FLOW'));
+  const priceItems = payload.filter(p => 
+    !String(p.dataKey).endsWith('_dollar_volume') && 
+    p.dataKey !== 'total_dollar_volume' && 
+    !String(p.dataKey).endsWith('_SMA') &&
+    !String(p.dataKey).endsWith('_FLOW')
+  );
 
   const sortedPriceItems = [...priceItems].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
   
@@ -108,6 +116,24 @@ export function ChartTooltip({
             </div>
           );
         })}
+
+        {/* Kapitalstrøm-seksjon (hvis aktiv) */}
+        {showLiquidityFlow && flowItems.length > 0 && (
+          <div className="mt-2 pt-1 border-t border-slate-800 dark:border-slate-800 light:border-slate-100 space-y-1">
+            <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest mb-1">Kapitalandel (Liquidity Share)</p>
+            {flowItems.map((item, i) => (
+              <div key={`flow-${i}`} className="flex items-center justify-between gap-6 opacity-80">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-slate-400 dark:text-slate-400 light:text-slate-600">{item.name?.replace('(Kapitalstrøm)', '').trim()}:</span>
+                </div>
+                <span className="font-mono font-bold text-indigo-300 dark:text-indigo-300 light:text-indigo-600">
+                  {typeof item.value === 'number' ? item.value.toFixed(1) : '0.0'}%
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Volum-seksjon nederst */}
         {totalDollarVolume > 0 && (
