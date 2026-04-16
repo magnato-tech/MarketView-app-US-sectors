@@ -1,7 +1,11 @@
 import { MarketDataPoint, SummaryStats } from '../types';
 import { TICKERS } from '../constants';
 
-export type PriceSeries = { times: number[]; closes: number[] };
+export type PriceSeries = { 
+  times: number[]; 
+  closes: number[];
+  volumes: number[];
+};
 
 export interface YahooChartResponse {
   chart?: {
@@ -9,7 +13,12 @@ export interface YahooChartResponse {
     result?: Array<{
       meta?: { symbol?: string; shortName?: string; longName?: string };
       timestamp?: number[];
-      indicators?: { quote?: Array<{ close?: (number | null)[] }> };
+      indicators?: { 
+        quote?: Array<{ 
+          close?: (number | null)[];
+          volume?: (number | null)[];
+        }> 
+      };
     }>;
   };
 }
@@ -25,27 +34,33 @@ export function parseChartJson(json: unknown): PriceSeries | null {
   if (!r?.timestamp?.length) return null;
 
   const close = r.indicators?.quote?.[0]?.close;
+  const volume = r.indicators?.quote?.[0]?.volume;
   if (!close || close.length !== r.timestamp.length) return null;
 
   const times: number[] = [];
   const closes: number[] = [];
+  const volumes: number[] = [];
   for (let i = 0; i < r.timestamp.length; i++) {
     const c = close[i];
+    const v = volume ? volume[i] : 0;
     if (c != null && Number.isFinite(c)) {
       times.push(r.timestamp[i]);
       closes.push(c);
+      volumes.push(v != null && Number.isFinite(v) ? v : 0);
     }
   }
-  return times.length ? { times, closes } : null;
+  return times.length ? { times, closes, volumes } : null;
 }
 
-function closeAtOrBefore(series: PriceSeries, t: number): number | null {
-  let best: number | null = null;
+function closeAtOrBefore(series: PriceSeries, t: number): { close: number | null, volume: number | null } {
+  let bestClose: number | null = null;
+  let bestVolume: number | null = null;
   for (let i = 0; i < series.times.length; i++) {
     if (series.times[i] > t) break;
-    best = series.closes[i];
+    bestClose = series.closes[i];
+    bestVolume = series.volumes[i];
   }
-  return best;
+  return { close: bestClose, volume: bestVolume };
 }
 
 export function mergeSeriesToChartData(
@@ -78,9 +93,10 @@ export function mergeSeriesToChartData(
       const series = bySymbol[sym];
       const base = baseline[sym];
       if (!series || base == null || base === 0) continue;
-      const price = closeAtOrBefore(series, t);
-      if (price == null) continue;
-      point[sym] = parseFloat((((price - base) / base) * 100).toFixed(2));
+      const { close, volume } = closeAtOrBefore(series, t);
+      if (close == null) continue;
+      point[sym] = parseFloat((((close - base) / base) * 100).toFixed(2));
+      point[`${sym}_volume`] = volume || 0;
       hasValue = true;
     }
     if (hasValue) data.push(point);

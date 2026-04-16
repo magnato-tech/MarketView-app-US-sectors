@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceArea 
+  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceArea, Cell 
 } from 'recharts';
 import { TICKERS } from '../../constants';
 import type { MainLineChartProps, ChartRangeSelection } from './types';
@@ -30,10 +30,11 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
   const gridColor = isDarkMode ? "#1e293b" : "#e2e8f0";
   const axisColor = isDarkMode ? "#475569" : "#64748b";
 
-  const { chartData, vixScaleFactor } = useMemo(() => {
-    // 1. Calculate VIX scale factor
+  const { chartData, vixScaleFactor, maxVolume } = useMemo(() => {
+    // 1. Calculate VIX scale factor and Max Volume
     let maxSektor = 0;
     let maxVix = 0;
+    let currentMaxVolume = 0;
 
     data.forEach(d => {
       visibleTickers.forEach(sym => {
@@ -43,6 +44,11 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         } else {
           if (val > maxSektor) maxSektor = val;
         }
+        
+        // Finn max volum for den primære sektoren (første i lista hvis drilldown)
+        const volKey = `${sym}_volume`;
+        const vol = typeof d[volKey] === 'number' ? d[volKey] as number : 0;
+        if (vol > currentMaxVolume) currentMaxVolume = vol;
       });
     });
 
@@ -71,7 +77,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
       });
     }
 
-    return { chartData: enrichedData, vixScaleFactor: factor };
+    return { chartData: enrichedData, vixScaleFactor: factor, maxVolume: currentMaxVolume };
   }, [data, visibleTickers, showSMA, smaWindow]);
 
   const handleMouseDown = (e: any) => {
@@ -117,9 +123,13 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
     setAnchorIndex(null);
   };
 
+  // Finn fargen til den primære sektoren for volum-histogrammet
+  const primaryTicker = visibleTickers[0];
+  const primaryColor = TICKERS.find(t => t.symbol === primaryTicker)?.color || '#3b82f6';
+
   return (
     <div className="relative w-full h-full group">
-      <LineChart 
+      <ComposedChart 
         data={chartData}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -137,6 +147,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
           fontFamily="monospace"
         />
         <YAxis
+          yAxisId="left"
           stroke={axisColor}
           fontSize={10}
           tickLine={false}
@@ -144,10 +155,16 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
           tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}%`}
           fontFamily="monospace"
         />
+        <YAxis
+          yAxisId="volume"
+          orientation="right"
+          domain={[0, maxVolume * 4]} // Volum tar opp nederste 25%
+          hide={true}
+        />
         <Tooltip 
           content={(props) => onTooltipContent({ ...props, rangeSelection, anchorIndex })} 
           active={anchorIndex !== null || isDragging ? true : undefined}
-          coordinate={anchorIndex !== null ? undefined : undefined} // Recharts handles this
+          cursor={{ stroke: isDarkMode ? '#334155' : '#e2e8f0', strokeWidth: 1 }}
         />
         <Legend
           wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }}
@@ -156,12 +173,39 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         
         {rangeSelection && (
           <ReferenceArea
+            yAxisId="left"
             x1={data[Math.min(rangeSelection.rangeStart, rangeSelection.rangeEnd)]?.timestamp}
             x2={data[Math.max(rangeSelection.rangeStart, rangeSelection.rangeEnd)]?.timestamp}
             strokeOpacity={0.3}
             fill="#3b82f6"
             fillOpacity={0.1}
           />
+        )}
+
+        {/* Volum Histogram for primær sektor */}
+        {primaryTicker && (
+          <Bar
+            yAxisId="volume"
+            dataKey={`${primaryTicker}_volume`}
+            name="Volum"
+            fill={primaryColor}
+            opacity={0.15}
+            radius={[2, 2, 0, 0]}
+          >
+            {chartData.map((entry, index) => {
+              // Vi kan fargelegge barer basert på om dagen var opp eller ned
+              const currentVal = entry[primaryTicker] as number;
+              const prevVal = index > 0 ? chartData[index - 1][primaryTicker] as number : currentVal;
+              const isUp = currentVal >= prevVal;
+              return (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={isUp ? '#10b981' : '#ef4444'} 
+                  opacity={0.2}
+                />
+              );
+            })}
+          </Bar>
         )}
 
         {visibleTickers.map(sym => {
@@ -175,6 +219,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
 
         const lines = [
           <Line
+            yAxisId="left"
             key={sym}
             type="monotone"
             dataKey={dataKey}
@@ -184,12 +229,14 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
             dot={false}
             activeDot={{ r: 6, strokeWidth: 0 }}
             animationDuration={1500}
+            connectNulls
           />
         ];
 
         if (showSMA) {
           lines.push(
             <Line
+              yAxisId="left"
               key={`${sym}_SMA`}
               type="monotone"
               dataKey={`${sym}_SMA`}
@@ -201,13 +248,14 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
               activeDot={false}
               legendType="none"
               animationDuration={1500}
+              connectNulls
             />
           );
         }
 
         return lines;
       })}
-    </LineChart>
+      </ComposedChart>
     {rangeSelection && !isDragging && (
       <button
         onClick={clearSelection}
