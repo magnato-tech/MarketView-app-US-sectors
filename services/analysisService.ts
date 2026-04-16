@@ -8,6 +8,7 @@ export type DerivedMetrics = {
   momentumScore: number;
   regime: 'High Vol' | 'Low Vol' | 'Stable';
   relativeStrength: number;
+  flowScore: number; // Volum-momentum %
 };
 
 export type RangeSummaryRow = {
@@ -85,6 +86,19 @@ export const calculateRangeSummary = (
       const mdd = calculateMaxDrawdown(prices);
       const rs = changePct - (benchmarkReturn * 100);
 
+      // Beregn Volum-momentum (Flow Score)
+      // Vi sammenligner snittvolum siste 3 dager mot baseline (starten av perioden)
+      const volKey = `${s.symbol}_dollar_volume`;
+      const volumes = data.map(d => d[volKey] as number).filter(v => typeof v === 'number' && !isNaN(v));
+      const baselineVol = volumes.length > 0 ? volumes[0] : 0;
+      const recentVol = volumes.length >= 3 
+        ? volumes.slice(-3).reduce((a, b) => a + b, 0) / 3 
+        : (volumes[volumes.length - 1] || 0);
+      
+      const flowScore = baselineVol > 0 
+        ? ((recentVol - baselineVol) / baselineVol) * 100 
+        : 0;
+
       const metrics: DerivedMetrics = {
         rank: 0,
         volatility: isFinite(vol) ? parseFloat(vol.toFixed(2)) : 0,
@@ -92,7 +106,8 @@ export const calculateRangeSummary = (
         trendStatus: changePct > 2 ? 'Bull' : changePct < -2 ? 'Bear' : 'Neutral',
         momentumScore: isFinite(changePct / (vol || 1)) ? parseFloat((changePct / (vol || 1)).toFixed(2)) : 0,
         regime: vol > 25 ? 'High Vol' : vol < 12 ? 'Low Vol' : 'Stable',
-        relativeStrength: isFinite(rs) ? parseFloat(rs.toFixed(2)) : 0
+        relativeStrength: isFinite(rs) ? parseFloat(rs.toFixed(2)) : 0,
+        flowScore: isFinite(flowScore) ? parseFloat(flowScore.toFixed(2)) : 0
       };
 
       return {

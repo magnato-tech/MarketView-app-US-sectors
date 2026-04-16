@@ -4,11 +4,23 @@ import { useDashboard } from '../contexts/DashboardContext';
 import { MainLineChart } from './dashboard/MainLineChart';
 import { ChartTooltip } from './dashboard/ChartTooltip';
 import { AIInsightPanel } from './dashboard/AIInsightPanel';
+import { OpportunityMatrix } from './dashboard/OpportunityMatrix';
 import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { formatPercent } from '../utils/formatters';
 
+const InfoIcon = ({ title }: { title: string }) => (
+  <div className="group relative inline-block cursor-help ml-1" title={title}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 hover:text-indigo-400">
+      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+    </svg>
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none border border-slate-700 shadow-xl">
+      {title}
+    </div>
+  </div>
+);
+
 export const AnalysisBoard: React.FC = () => {
-  const { data, summary, aiInsight, period, activeTickers, analysisSettings, setAnalysisSettings } = useDashboard();
+  const { data, summary, aiInsight, rangeSummary, period, activeTickers, analysisSettings, setAnalysisSettings } = useDashboard();
   const { showSMA, smaWindow, showLiquidityFlow } = analysisSettings;
 
   const handleSmaClick = (w: number) => {
@@ -27,7 +39,7 @@ export const AnalysisBoard: React.FC = () => {
     active?: boolean; 
     payload?: RechartsTooltipPayloadItem[]; 
     label?: string | number; 
-    rangeSelection?: ChartRangeSelection | null;
+    rangeSelection?: any;
     anchorIndex?: number | null 
   }) => (
     <ChartTooltip
@@ -62,6 +74,7 @@ export const AnalysisBoard: React.FC = () => {
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="m17 17-5 5-5-5"/><path d="m7 7 5-5 5 5"/></svg>
               Kapitalstrøm
+              <InfoIcon title="Viser momentum i handelsvolum (dollarverdi) relativt til starten av perioden" />
             </button>
             <div className="w-px h-4 bg-slate-800 dark:bg-slate-800 light:bg-slate-200 mx-1"></div>
             <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase px-2">SMA:</span>
@@ -94,6 +107,9 @@ export const AnalysisBoard: React.FC = () => {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Opportunity Matrix */}
+      <OpportunityMatrix summary={rangeSummary} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* AI Deep Dive */}

@@ -82,11 +82,15 @@ Valgte instrumenter: ${context.currentTickers.join(', ')}
 
 Markedsdata (Ranking og Performance):
 ${context.rangeSummary.map(s => {
-  const m = s.metrics;
-  return `- ${s.name} (${s.symbol}): Rank ${m?.rank || 'N/A'}, Endring ${s.changePct.toFixed(2)}%, Volatilitet ${m?.volatility.toFixed(1) || 'N/A'}%, Trend: ${m?.trendStatus || 'N/A'}`;
-}).join('\n')}
+    const m = s.metrics;
+    return `- ${s.name} (${s.symbol}): RS ${m?.relativeStrength || 'N/A'}, Flow ${m?.flowScore || 'N/A'}%, Endring ${s.changePct.toFixed(2)}%, Volatilitet ${m?.volatility.toFixed(1) || 'N/A'}%, Trend: ${m?.trendStatus || 'N/A'}`;
+  }).join('\n')}
 
-${divergenceContext ? `Spesielle observasjoner (Volum/Pris-analyse):\n${divergenceContext}` : ''}
+Instruksjoner for Opportunity Matrix:
+- Quadrant 1 (Leaders): RS > 0 og Flow > 10%
+- Quadrant 2 (Improving): RS < 0 og Flow > 10%
+- Quadrant 3 (Weakening): RS > 0 og Flow < -10%
+- Quadrant 4 (Laggards): RS < 0 og Flow < -10%
 `;
 
   const prompt = `
@@ -100,7 +104,9 @@ Instruksjoner:
 1. Svar kort, konsist og analytisk på norsk.
 2. Bruk kun dataene som er oppgitt over.
 3. Vær spesielt oppmerksom på 'Divergens' – hvis volumet (kapitalstrømmen) er høyt mens prisen står stille, forklar at dette ofte betyr institusjonell akkumulering (kjøp) eller distribusjon (salg).
-4. Hvis brukeren spør om topper i starten av mars eller andre perioder, referer til de spesifikke observasjonene i konteksten.
+4. NYHET: Analyser Opportunity Matrix (RS vs Flow). Lag alltid en kort "Actionable Shortlist" til brukeren i svaret ditt:
+   - Nevn de sterkeste 'Leaders' (hvis noen).
+   - Identifiser 'Improving' kandidater som kan være neste vinnere.
 5. Forklar at volum uten prisbevegelse betyr at det er en intens kamp mellom kjøpere og selgere på det nivået.
 
 Svar i JSON-format:
