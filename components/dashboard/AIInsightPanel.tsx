@@ -26,7 +26,7 @@ export const AIInsightPanel: React.FC<AIInsightPanelProps> = ({ aiInsight, perio
         <div className="flex-1 space-y-4">
           <div className="flex items-center justify-between border-b border-white/5 dark:border-white/5 light:border-slate-100 pb-3">
             <h4 className="text-sm font-black text-white dark:text-white light:text-slate-900 flex items-center gap-2 uppercase tracking-wider">
-              Gemini AS <span className="text-blue-500">Markedsrapport</span>
+              Vår <span className="text-blue-500">Markedsrapport</span>
             </h4>
             <span className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 font-bold bg-slate-950 dark:bg-slate-950 light:bg-slate-100 px-2 py-1 rounded">Periode: {period}</span>
           </div>

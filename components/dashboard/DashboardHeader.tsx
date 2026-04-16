@@ -6,8 +6,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ summary }) => 
   return (
     <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
-        <h2 className="text-2xl font-extrabold text-white dark:text-white light:text-slate-900 tracking-tight italic transition-colors">Gemini <span className="text-blue-500 not-italic">AS</span> Terminal</h2>
-        <p className="text-slate-400 dark:text-slate-400 light:text-slate-500 text-sm transition-colors">Avansert portefølje- og sektoranalyse.</p>
+        <h2 className="text-2xl font-black text-white dark:text-white light:text-slate-900 tracking-tight transition-colors uppercase">Sektor<span className="text-blue-500">analyse</span></h2>
+        <p className="text-slate-400 dark:text-slate-400 light:text-slate-500 text-sm font-medium transition-colors">Markedsterminal for profesjonell analyse.</p>
       </div>
       <div className="flex flex-wrap gap-3">
          {summary.slice(0, 4).map(s => (
