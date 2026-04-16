@@ -191,6 +191,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
             fill={primaryColor}
             opacity={0.15}
             radius={[2, 2, 0, 0]}
+            legendType="none"
           >
             {chartData.map((entry, index) => {
               // Vi kan fargelegge barer basert på om dagen var opp eller ned
