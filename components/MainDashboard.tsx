@@ -13,6 +13,7 @@ import { MainLineChart } from './dashboard/MainLineChart';
 import { RelativeAvkastningPanel } from './dashboard/RelativeAvkastningPanel';
 import { DrilldownTable } from './DrilldownTable';
 import { Leaderboard } from './dashboard/Leaderboard';
+import { AIChat } from './dashboard/AIChat';
 import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { ErrorBoundary } from './ErrorBoundary';
 import { AnalysisBoard } from './AnalysisBoard';
@@ -170,6 +171,9 @@ const MainDashboard: React.FC<DashboardProps> = ({
           <div className="lg:col-span-4 space-y-6">
             <ErrorBoundary title="Kunne ikke laste Leaderboard">
               <Leaderboard />
+            </ErrorBoundary>
+            <ErrorBoundary title="Kunne ikke laste AI-chat">
+              <AIChat />
             </ErrorBoundary>
           </div>
         </div>
