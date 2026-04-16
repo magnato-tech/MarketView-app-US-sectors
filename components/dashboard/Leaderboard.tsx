@@ -40,43 +40,43 @@ export const Leaderboard: React.FC = () => {
   const bottom5 = [...sorted].reverse().slice(0, 5);
 
   const MetricBadge = ({ label, value, colorClass }: { label: string, value: string | number, colorClass?: string }) => (
-    <div className="flex flex-col items-center px-2 py-1 rounded bg-slate-800/50 border border-slate-700/50">
-      <span className="text-[7px] uppercase text-slate-500 font-bold leading-tight">{label}</span>
-      <span className={`text-[9px] font-mono font-bold leading-tight ${colorClass || 'text-slate-300'}`}>{value}</span>
+    <div className="flex flex-col items-center px-2 py-1.5 rounded bg-slate-950/40 border border-white/10 shadow-inner">
+      <span className="text-[8px] uppercase text-slate-400 font-black tracking-wider leading-tight mb-0.5">{label}</span>
+      <span className={`text-[11px] font-mono font-black leading-tight ${colorClass || 'text-white'}`}>{value}</span>
     </div>
   );
 
   return (
     <div className="space-y-6">
       {/* Vinner-kort */}
-      <div className="bg-gradient-to-br from-blue-600/20 to-indigo-600/20 border border-blue-500/30 rounded-2xl p-5 shadow-lg backdrop-blur-sm shrink-0">
-        <div className="flex justify-between items-start mb-4">
+      <div className="bg-gradient-to-br from-blue-700 to-indigo-800 border border-blue-400/30 rounded-2xl p-6 shadow-2xl shrink-0">
+        <div className="flex justify-between items-start mb-5">
           <div>
-            <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">
+            <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.2em]">
               Vinner siste {period}
             </span>
-            <h3 className="text-lg font-bold text-white mt-0.5">{sorted[0]?.name}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: sorted[0]?.color }}></div>
-              <span className="text-[10px] text-slate-400 font-mono">{sorted[0]?.symbol}</span>
+            <h3 className="text-2xl font-black text-white mt-1 tracking-tight">{sorted[0]?.name}</h3>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.5)]" style={{ backgroundColor: sorted[0]?.color }}></div>
+              <span className="text-xs text-blue-100 font-bold font-mono tracking-wider">{sorted[0]?.symbol}</span>
             </div>
           </div>
           <div className="text-right">
-            <div className={`text-2xl font-black font-mono leading-none ${getStrongTrendColorClass(sorted[0]?.changePct)}`}>
+            <div className={`text-3xl font-black font-mono leading-none drop-shadow-md ${sorted[0]?.changePct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {sorted[0]?.changePct > 0 ? '+' : ''}{sorted[0]?.changePct}%
             </div>
-            <div className="text-[8px] text-slate-500 font-bold uppercase mt-1">Total Return</div>
+            <div className="text-[9px] text-blue-200 font-black uppercase mt-2 tracking-widest opacity-80">Total Return</div>
           </div>
         </div>
         
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           <MetricBadge 
             label="Rel. Strength" 
             value={`${(sorted[0]?.metrics?.relativeStrength ?? 0) > 0 ? '+' : ''}${sorted[0]?.metrics?.relativeStrength ?? 0}%`} 
-            colorClass={(sorted[0]?.metrics?.relativeStrength ?? 0) > 0 ? 'text-emerald-400' : 'text-rose-400'} 
+            colorClass={(sorted[0]?.metrics?.relativeStrength ?? 0) > 0 ? 'text-emerald-400' : 'text-rose-300'} 
           />
-          <MetricBadge label="Volatility" value={`${sorted[0]?.metrics?.volatility ?? 0}%`} />
-          <MetricBadge label="Max DD" value={`${sorted[0]?.metrics?.maxDrawdown ?? 0}%`} colorClass="text-rose-400" />
+          <MetricBadge label="Volatility" value={`${sorted[0]?.metrics?.volatility ?? 0}%`} colorClass="text-blue-100" />
+          <MetricBadge label="Max DD" value={`${sorted[0]?.metrics?.maxDrawdown ?? 0}%`} colorClass="text-rose-300" />
         </div>
       </div>
 

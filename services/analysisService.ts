@@ -67,30 +67,30 @@ export const calculateRangeSummary = (
 
   // Finn benchmark (f.eks. SPY eller første index-lignende ticker)
   const benchmarkSymbol = summary.find(s => s.symbol === 'SPY' || s.symbol.startsWith('^'))?.symbol || summary[0]?.symbol;
-  const benchmarkPrices = data.map(d => d[benchmarkSymbol] as number).filter(v => typeof v === 'number');
-  const benchmarkReturn = benchmarkPrices.length >= 2 
-    ? (benchmarkPrices[benchmarkPrices.length-1] - benchmarkPrices[0]) / benchmarkPrices[0] 
-    : 0;
+    const benchmarkPrices = data.map(d => d[benchmarkSymbol] as number).filter(v => typeof v === 'number' && !isNaN(v));
+    const benchmarkReturn = benchmarkPrices.length >= 2 
+      ? (benchmarkPrices[benchmarkPrices.length-1] - benchmarkPrices[0]) / (benchmarkPrices[0] || 1) 
+      : 0;
 
-  const rows = summary.map(s => {
-    const prices = data.map(d => d[s.symbol] as number).filter(v => typeof v === 'number');
-    const startPrice = prices[0] || 0;
-    const endPrice = prices[prices.length - 1] || 0;
-    const changePct = startPrice !== 0 ? ((endPrice - startPrice) / startPrice) * 100 : 0;
-    
-    const vol = calculateVolatility(prices);
-    const mdd = calculateMaxDrawdown(prices);
-    const rs = changePct - (benchmarkReturn * 100);
+    const rows = summary.map(s => {
+      const prices = data.map(d => d[s.symbol] as number).filter(v => typeof v === 'number' && !isNaN(v));
+      const startPrice = prices[0] || 0;
+      const endPrice = prices[prices.length - 1] || 0;
+      const changePct = startPrice !== 0 ? ((endPrice - startPrice) / startPrice) * 100 : 0;
+      
+      const vol = calculateVolatility(prices);
+      const mdd = calculateMaxDrawdown(prices);
+      const rs = changePct - (benchmarkReturn * 100);
 
-    const metrics: DerivedMetrics = {
-      rank: 0, // Blir satt etterpå
-      volatility: parseFloat(vol.toFixed(2)),
-      maxDrawdown: parseFloat(mdd.toFixed(2)),
-      trendStatus: changePct > 2 ? 'Bull' : changePct < -2 ? 'Bear' : 'Neutral',
-      momentumScore: parseFloat((changePct / (vol || 1)).toFixed(2)),
-      regime: vol > 25 ? 'High Vol' : vol < 12 ? 'Low Vol' : 'Stable',
-      relativeStrength: parseFloat(rs.toFixed(2))
-    };
+      const metrics: DerivedMetrics = {
+        rank: 0,
+        volatility: isFinite(vol) ? parseFloat(vol.toFixed(2)) : 0,
+        maxDrawdown: isFinite(mdd) ? parseFloat(mdd.toFixed(2)) : 0,
+        trendStatus: changePct > 2 ? 'Bull' : changePct < -2 ? 'Bear' : 'Neutral',
+        momentumScore: isFinite(changePct / (vol || 1)) ? parseFloat((changePct / (vol || 1)).toFixed(2)) : 0,
+        regime: vol > 25 ? 'High Vol' : vol < 12 ? 'Low Vol' : 'Stable',
+        relativeStrength: isFinite(rs) ? parseFloat(rs.toFixed(2)) : 0
+      };
 
     return {
       symbol: s.symbol,
