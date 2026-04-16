@@ -13,21 +13,19 @@ export const AnalysisBoard: React.FC = () => {
   const [showSMA, setShowSMA] = useState(true);
   const [showLiquidityFlow, setShowLiquidityFlow] = useState(false);
 
-  // Standardutvalg for analyse: S&P 500, Nasdaq 100, VIX
+  // Standardutvalg for analyse: Kun ankerindekser (S&P 500, Nasdaq 100, VIX)
   const defaultAnalysisSymbols = ['^GSPC', '^NDX', '^VIX'];
   
   // Finn hvilke av standard-tickere som faktisk er tilgjengelige i data/summary
-  // Sjekk både symbol og name for å være sikker
   const availableDefaults = summary
     .filter(s => defaultAnalysisSymbols.includes(s.symbol))
     .map(s => s.symbol);
 
-  // Hvis vi er i analyse-modus og har mange tickere valgt, kan vi vurdere å filtrere
-  // Men brukeren ba om "maks tre som standard". Vi implementerer en "Reset til standard" knapp
-  // og sørger for at grafen i denne fanen bruker et begrenset utvalg hvis ønskelig.
+  // Vi setter standardutvalget som aktivt med en gang
   const [useDefaultSelection, setUseDefaultSelection] = useState(true);
 
-  // VIKTIG: Hvis ingen av standard-tickere er tilgjengelige, må vi falle tilbake til activeTickers
+  // Hvis vi har ankerindekser tilgjengelig, bruk dem som standard. 
+  // Hvis brukeren ikke har lastet dem inn i dashboardet, faller vi tilbake til de valgte sektorene.
   const analysisTickers = (useDefaultSelection && availableDefaults.length > 0)
     ? availableDefaults
     : activeTickers;
@@ -75,9 +73,9 @@ export const AnalysisBoard: React.FC = () => {
                   ? 'bg-blue-600 text-white' 
                   : 'text-slate-400 dark:text-slate-400 light:text-slate-500 hover:text-slate-200 dark:hover:text-slate-200 light:hover:text-slate-900'
               }`}
-              title="Vis kun S&P 500, Nasdaq og VIX"
+              title="Vis kun ankerindekser (S&P 500, Nasdaq, VIX)"
             >
-              Standardutvalg
+              Ankerindekser
             </button>
             <div className="w-px h-4 bg-slate-800 dark:bg-slate-800 light:bg-slate-200 mx-1"></div>
             <button
