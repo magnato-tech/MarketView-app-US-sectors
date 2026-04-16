@@ -36,7 +36,22 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
     let maxVix = 0;
     let currentMaxVolume = 0;
 
-    data.forEach(d => {
+    // Enrich data with SMA, scaled VIX and Aggregated Dollar Volume
+    const enrichedData = data.map(d => {
+      const newPoint = { ...d };
+      
+      // Beregn aggregert dollar-volum for de synlige tickerne
+      let totalDollarVolume = 0;
+      visibleTickers.forEach(sym => {
+        const vol = typeof d[`${sym}_dollar_volume`] === 'number' ? d[`${sym}_dollar_volume`] as number : 0;
+        totalDollarVolume += vol;
+      });
+      newPoint['total_dollar_volume'] = totalDollarVolume;
+
+      // Finn max aggregert volum for skalering
+      if (totalDollarVolume > currentMaxVolume) currentMaxVolume = totalDollarVolume;
+
+      // Finn max verdier for VIX-skalering
       visibleTickers.forEach(sym => {
         const val = Math.abs(typeof d[sym] === 'number' ? d[sym] as number : 0);
         if (sym === '^VIX') {
@@ -44,40 +59,38 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         } else {
           if (val > maxSektor) maxSektor = val;
         }
-        
-        // Finn max volum for den primære sektoren (første i lista hvis drilldown)
-        const volKey = `${sym}_volume`;
-        const vol = typeof d[volKey] === 'number' ? d[volKey] as number : 0;
-        if (vol > currentMaxVolume) currentMaxVolume = vol;
       });
-    });
 
-    // Default to 1.0 if no data or VIX is not active
-    const factor = (maxVix > 0 && maxSektor > 0) ? (maxSektor / maxVix) * 0.8 : 1.0;
-
-    // 2. Enrich data with SMA and scaled VIX
-    let enrichedData = data.map(d => {
-      const newPoint = { ...d };
       if (typeof d['^VIX'] === 'number') {
-        newPoint['^VIX_SCALED'] = (d['^VIX'] as number) * factor;
+        newPoint['^VIX_SCALED'] = (d['^VIX'] as number) * 1.0; // Midlertidig faktor
       }
+      
       return newPoint;
     });
+
+    // Beregn endelig VIX-faktor
+    const factor = (maxVix > 0 && maxSektor > 0) ? (maxSektor / maxVix) * 0.8 : 1.0;
+    
+    // Oppdater VIX_SCALED med riktig faktor og legg til SMA
+    let finalData = enrichedData.map(d => ({
+      ...d,
+      '^VIX_SCALED': typeof d['^VIX'] === 'number' ? (d['^VIX'] as number) * factor : undefined
+    }));
 
     if (showSMA) {
       visibleTickers.forEach(sym => {
         const key = sym === '^VIX' ? '^VIX_SCALED' : sym;
-        const prices = enrichedData.map(d => typeof d[key] === 'number' ? d[key] as number : 0);
+        const prices = finalData.map(d => typeof d[key] === 'number' ? d[key] as number : 0);
         const smaValues = calculateSMA(prices, smaWindow);
         
-        enrichedData = enrichedData.map((d, i) => ({
+        finalData = finalData.map((d, i) => ({
           ...d,
           [`${sym}_SMA`]: smaValues[i]
         }));
       });
     }
 
-    return { chartData: enrichedData, vixScaleFactor: factor, maxVolume: currentMaxVolume };
+    return { chartData: finalData, vixScaleFactor: factor, maxVolume: currentMaxVolume };
   }, [data, visibleTickers, showSMA, smaWindow]);
 
   const handleMouseDown = (e: any) => {
@@ -182,32 +195,38 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
           />
         )}
 
-        {/* Volum Histogram for primær sektor */}
-        {primaryTicker && (
-          <Bar
-            yAxisId="volume"
-            dataKey={`${primaryTicker}_volume`}
-            name="Volum"
-            fill={primaryColor}
-            opacity={0.15}
-            radius={[2, 2, 0, 0]}
-            legendType="none"
-          >
-            {chartData.map((entry, index) => {
-              // Vi kan fargelegge barer basert på om dagen var opp eller ned
-              const currentVal = entry[primaryTicker] as number;
-              const prevVal = index > 0 ? chartData[index - 1][primaryTicker] as number : currentVal;
-              const isUp = currentVal >= prevVal;
-              return (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={isUp ? '#10b981' : '#ef4444'} 
-                  opacity={0.2}
-                />
-              );
-            })}
-          </Bar>
-        )}
+        {/* Aggregert Volum Histogram (Dollar Volume) */}
+        <Bar
+          yAxisId="volume"
+          dataKey="total_dollar_volume"
+          name="Total verdi handlet"
+          fill={primaryColor}
+          opacity={0.15}
+          radius={[2, 2, 0, 0]}
+          legendType="none"
+        >
+          {chartData.map((entry, index) => {
+            // Fargelegg basert på gjennomsnittlig retning for alle valgte sektorer
+            let totalChange = 0;
+            let count = 0;
+            visibleTickers.forEach(sym => {
+              if (sym !== '^VIX') {
+                const currentVal = entry[sym] as number;
+                const prevVal = index > 0 ? chartData[index - 1][sym] as number : currentVal;
+                totalChange += (currentVal - prevVal);
+                count++;
+              }
+            });
+            const isUp = count > 0 ? totalChange >= 0 : true;
+            return (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={isUp ? '#10b981' : '#ef4444'} 
+                opacity={0.2}
+              />
+            );
+          })}
+        </Bar>
 
         {visibleTickers.map(sym => {
         const ticker = TICKERS.find(t => t.symbol === sym);

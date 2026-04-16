@@ -41,10 +41,13 @@ export function ChartTooltip({
     : (anchorIndex != null && data[anchorIndex] ? data[anchorIndex] : null);
 
   // Separer volum fra priskurver
-  const volumeItems = payload.filter(p => String(p.dataKey).endsWith('_volume'));
-  const priceItems = payload.filter(p => !String(p.dataKey).endsWith('_volume') && !String(p.dataKey).endsWith('_SMA'));
+  const volumeItems = payload.filter(p => String(p.dataKey).endsWith('_dollar_volume') || p.dataKey === 'total_dollar_volume');
+  const priceItems = payload.filter(p => !String(p.dataKey).endsWith('_dollar_volume') && p.dataKey !== 'total_dollar_volume' && !String(p.dataKey).endsWith('_SMA'));
 
   const sortedPriceItems = [...priceItems].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  
+  // Finn total dollar-volum (enten fra total_dollar_volume eller summen av synlige)
+  const totalDollarVolume = payload.find(p => p.dataKey === 'total_dollar_volume')?.value as number || 0;
 
   return (
     <div className="bg-slate-900/95 dark:bg-slate-900/95 light:bg-white/95 backdrop-blur-md border border-slate-700 dark:border-slate-700 light:border-slate-200 p-3 rounded-lg shadow-2xl text-xs min-w-[200px] transition-colors duration-300">
@@ -107,19 +110,17 @@ export function ChartTooltip({
         })}
 
         {/* Volum-seksjon nederst */}
-        {volumeItems.length > 0 && (
+        {totalDollarVolume > 0 && (
           <div className="mt-2 pt-1 border-t border-slate-800 dark:border-slate-800 light:border-slate-100">
-            {volumeItems.map((v, i) => (
-              <div key={`vol-${i}`} className="flex items-center justify-between gap-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                  <span className="text-slate-500 dark:text-slate-500 light:text-slate-400">Volum ({v.name?.replace('Volum', '').trim()}):</span>
-                </div>
-                <span className="font-mono font-bold text-slate-300 dark:text-slate-300 light:text-slate-700">
-                  {formatLargeNumber(v.value ?? 0)}
-                </span>
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <span className="text-slate-500 dark:text-slate-500 light:text-slate-400">Total verdi handlet:</span>
               </div>
-            ))}
+              <span className="font-mono font-bold text-slate-300 dark:text-slate-300 light:text-slate-700">
+                ${formatLargeNumber(totalDollarVolume)}
+              </span>
+            </div>
           </div>
         )}
       </div>

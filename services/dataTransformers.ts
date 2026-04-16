@@ -95,8 +95,14 @@ export function mergeSeriesToChartData(
       if (!series || base == null || base === 0) continue;
       const { close, volume } = closeAtOrBefore(series, t);
       if (close == null) continue;
+      
+      // Beregn relativ endring %
       point[sym] = parseFloat((((close - base) / base) * 100).toFixed(2));
-      point[`${sym}_volume`] = volume || 0;
+      
+      // Beregn handelsverdi i dollar (Dollar Volume)
+      const dollarVolume = close * (volume || 0);
+      point[`${sym}_dollar_volume`] = dollarVolume;
+      
       hasValue = true;
     }
     if (hasValue) data.push(point);
