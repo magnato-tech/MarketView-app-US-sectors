@@ -120,18 +120,27 @@ export function ChartTooltip({
         {/* Kapitalstrøm-seksjon (hvis aktiv) */}
         {showLiquidityFlow && flowItems.length > 0 && (
           <div className="mt-2 pt-1 border-t border-slate-800 dark:border-slate-800 light:border-slate-100 space-y-1">
-            <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest mb-1">Kapitalandel (Liquidity Share)</p>
-            {flowItems.map((item, i) => (
-              <div key={`flow-${i}`} className="flex items-center justify-between gap-6 opacity-80">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-slate-400 dark:text-slate-400 light:text-slate-600">{item.name?.replace('(Kapitalstrøm)', '').trim()}:</span>
+            <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest mb-1">Volum-momentum (vs. start)</p>
+            {flowItems.map((item, i) => {
+              const sym = String(item.dataKey).replace('_FLOW', '');
+              const dollarVol = data[anchorIndex ?? data.length - 1]?.[`${sym}_dollar_volume`] as number || 0;
+              return (
+                <div key={`flow-${i}`} className="flex flex-col opacity-90">
+                  <div className="flex items-center justify-between gap-6">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="text-slate-400 dark:text-slate-400 light:text-slate-600">{item.name?.replace('(Volum %)', '').trim()}:</span>
+                    </div>
+                    <span className={`font-mono font-bold ${getTrendColorClass(item.value as number)}`}>
+                      {typeof item.value === 'number' ? (item.value > 0 ? '+' : '') + item.value.toFixed(1) : '0.0'}%
+                    </span>
+                  </div>
+                  <div className="flex justify-end">
+                    <span className="text-[9px] text-slate-500 font-mono italic">Verdi: ${formatLargeNumber(dollarVol)}</span>
+                  </div>
                 </div>
-                <span className="font-mono font-bold text-indigo-300 dark:text-indigo-300 light:text-indigo-600">
-                  {typeof item.value === 'number' ? item.value.toFixed(1) : '0.0'}%
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

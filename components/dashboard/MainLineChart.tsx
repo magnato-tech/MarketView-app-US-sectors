@@ -95,15 +95,25 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
       visibleTickers.forEach(sym => {
         if (sym === '^VIX') return;
         
-        // Beregn rå andel % for hver dag
-        const shares = finalData.map(d => {
-          const total = typeof d['total_dollar_volume'] === 'number' ? d['total_dollar_volume'] as number : 0;
-          const sector = typeof d[`${sym}_dollar_volume`] === 'number' ? d[`${sym}_dollar_volume`] as number : 0;
-          return total > 0 ? (sector / total) * 100 : 0;
+        // Finn baseline volum (første gyldige datapunkt)
+        let baselineVol = 0;
+        for (const d of finalData) {
+          const v = typeof d[`${sym}_dollar_volume`] === 'number' ? d[`${sym}_dollar_volume`] as number : 0;
+          if (v > 0) {
+            baselineVol = v;
+            break;
+          }
+        }
+
+        // Beregn indeksert endring % fra start
+        const indexedShares = finalData.map(d => {
+          const currentVol = typeof d[`${sym}_dollar_volume`] === 'number' ? d[`${sym}_dollar_volume`] as number : 0;
+          if (baselineVol === 0) return 0;
+          return ((currentVol - baselineVol) / baselineVol) * 100;
         });
 
         // Bruk 5-dagers SMA for å glatte ut kapitalstrømmen
-        const smoothedFlow = calculateSMA(shares, 5);
+        const smoothedFlow = calculateSMA(indexedShares, 5);
         
         finalData = finalData.map((d, i) => ({
           ...d,
@@ -199,8 +209,21 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         <YAxis
           yAxisId="flow"
           orientation="right"
-          domain={[0, 100]} // Kapitalandel er 0-100%
-          hide={true}
+          domain={['auto', 'auto']} // La skalaen tilpasse seg momentumet
+          hide={!showLiquidityFlow}
+          stroke={axisColor}
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(val) => `${val > 0 ? '+' : ''}${val.toFixed(0)}%`}
+          fontFamily="monospace"
+          label={{ 
+            value: 'Volum-momentum %', 
+            angle: 90, 
+            position: 'insideRight', 
+            style: { fontSize: '10px', fill: axisColor, fontWeight: 'bold' },
+            offset: 10
+          }}
         />
         <Tooltip 
           content={(props) => onTooltipContent({ ...props, rangeSelection, anchorIndex, showLiquidityFlow })} 
@@ -308,15 +331,16 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
               key={`${sym}_FLOW`}
               type="monotone"
               dataKey={`${sym}_FLOW`}
-              name={`${ticker.name} (Kapitalstrøm)`}
+              name={`${ticker.name} (Volum %)`}
               stroke={ticker.color}
-              strokeWidth={1.5}
-              strokeDasharray="3 3"
+              strokeWidth={2}
+              strokeDasharray="4 4"
               dot={false}
               activeDot={false}
-              legendType="none"
+              legendType="line"
               animationDuration={1500}
               connectNulls
+              strokeOpacity={0.6}
             />
           );
         }
