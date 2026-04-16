@@ -231,8 +231,21 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
           cursor={{ stroke: isDarkMode ? '#334155' : '#e2e8f0', strokeWidth: 1 }}
         />
         <Legend
-          wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }}
-          iconType="circle"
+          verticalAlign="bottom"
+          align="center"
+          wrapperStyle={{ 
+            paddingTop: '30px', 
+            fontSize: '11px', 
+            fontWeight: 'bold',
+            display: 'flex',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: '10px'
+          }}
+          iconType="plainline"
+          formatter={(value: string) => (
+            <span className={isDarkMode ? "text-slate-300" : "text-slate-700"}>{value}</span>
+          )}
         />
         
         {rangeSelection && (
@@ -286,7 +299,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         const dataKey = sym === '^VIX' ? '^VIX_SCALED' : sym;
         const displayName = sym === '^VIX' 
           ? `${ticker.name} (auto-skalert ${vixScaleFactor.toFixed(2)}x)` 
-          : ticker.name;
+          : `${ticker.name} (Pris %)`;
 
         const lines = [
           <Line
@@ -337,7 +350,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
               strokeDasharray="4 4"
               dot={false}
               activeDot={false}
-              legendType="line"
+              legendType="plainline"
               animationDuration={1500}
               connectNulls
               strokeOpacity={0.6}

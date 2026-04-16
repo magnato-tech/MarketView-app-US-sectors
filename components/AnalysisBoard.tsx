@@ -8,10 +8,29 @@ import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { formatPercent } from '../utils/formatters';
 
 export const AnalysisBoard: React.FC = () => {
-  const { data, summary, aiInsight, period, activeTickers } = useDashboard();
+  const { data, summary, aiInsight, period, activeTickers, handleTickerToggle } = useDashboard();
   const [smaWindow, setSmaWindow] = useState(20);
   const [showSMA, setShowSMA] = useState(true);
   const [showLiquidityFlow, setShowLiquidityFlow] = useState(false);
+
+  // Standardutvalg for analyse: S&P 500, Nasdaq 100, VIX
+  const defaultAnalysisSymbols = ['^GSPC', '^NDX', '^VIX'];
+  
+  // Finn hvilke av standard-tickere som faktisk er tilgjengelige i data/summary
+  // Sjekk både symbol og name for å være sikker
+  const availableDefaults = summary
+    .filter(s => defaultAnalysisSymbols.includes(s.symbol))
+    .map(s => s.symbol);
+
+  // Hvis vi er i analyse-modus og har mange tickere valgt, kan vi vurdere å filtrere
+  // Men brukeren ba om "maks tre som standard". Vi implementerer en "Reset til standard" knapp
+  // og sørger for at grafen i denne fanen bruker et begrenset utvalg hvis ønskelig.
+  const [useDefaultSelection, setUseDefaultSelection] = useState(true);
+
+  // VIKTIG: Hvis ingen av standard-tickere er tilgjengelige, må vi falle tilbake til activeTickers
+  const analysisTickers = (useDefaultSelection && availableDefaults.length > 0)
+    ? availableDefaults
+    : activeTickers;
 
   const handleSmaClick = (w: number) => {
     if (smaWindow === w && showSMA) {
@@ -50,6 +69,18 @@ export const AnalysisBoard: React.FC = () => {
           </div>
           <div className="flex items-center gap-3 bg-slate-950 dark:bg-slate-950 light:bg-slate-100 p-1 rounded-lg border border-slate-800 dark:border-slate-800 light:border-slate-200">
             <button
+              onClick={() => setUseDefaultSelection(!useDefaultSelection)}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${
+                useDefaultSelection
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-slate-400 dark:text-slate-400 light:text-slate-500 hover:text-slate-200 dark:hover:text-slate-200 light:hover:text-slate-900'
+              }`}
+              title="Vis kun S&P 500, Nasdaq og VIX"
+            >
+              Standardutvalg
+            </button>
+            <div className="w-px h-4 bg-slate-800 dark:bg-slate-800 light:bg-slate-200 mx-1"></div>
+            <button
               onClick={() => setShowLiquidityFlow(!showLiquidityFlow)}
               className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${
                 showLiquidityFlow
@@ -83,7 +114,7 @@ export const AnalysisBoard: React.FC = () => {
           <ResponsiveContainer width="100%" height="100%">
             <MainLineChart 
               data={data} 
-              activeTickers={activeTickers} 
+              activeTickers={analysisTickers} 
               onTooltipContent={renderTooltip}
               showSMA={showSMA}
               smaWindow={smaWindow}
