@@ -21,11 +21,10 @@ export const AnalysisBoard: React.FC = () => {
     .filter(s => defaultAnalysisSymbols.includes(s.symbol))
     .map(s => s.symbol);
 
-  // Vi setter standardutvalget som aktivt med en gang
+  // Vi bruker en state for å huske om brukeren manuelt har overstyrt standardutvalget
   const [useDefaultSelection, setUseDefaultSelection] = useState(true);
 
-  // Hvis vi har ankerindekser tilgjengelig, bruk dem som standard. 
-  // Hvis brukeren ikke har lastet dem inn i dashboardet, faller vi tilbake til de valgte sektorene.
+  // Hvis vi har ankerindekser tilgjengelig, bruk dem som standard hvis ikke brukeren har valgt noe annet.
   const analysisTickers = (useDefaultSelection && availableDefaults.length > 0)
     ? availableDefaults
     : activeTickers;
@@ -37,6 +36,11 @@ export const AnalysisBoard: React.FC = () => {
       setSmaWindow(w);
       setShowSMA(true);
     }
+  };
+
+  // Funksjon for å bytte standardutvalg som også husker valget
+  const toggleDefaultSelection = () => {
+    setUseDefaultSelection(!useDefaultSelection);
   };
 
   const renderTooltip = (props: { 
@@ -67,7 +71,7 @@ export const AnalysisBoard: React.FC = () => {
           </div>
           <div className="flex items-center gap-3 bg-slate-950 dark:bg-slate-950 light:bg-slate-100 p-1 rounded-lg border border-slate-800 dark:border-slate-800 light:border-slate-200">
             <button
-              onClick={() => setUseDefaultSelection(!useDefaultSelection)}
+              onClick={toggleDefaultSelection}
               className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${
                 useDefaultSelection
                   ? 'bg-blue-600 text-white' 
