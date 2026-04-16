@@ -14,7 +14,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <DashboardProvider initialTickers={['XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLB']}>
+    <DashboardProvider initialTickers={['XLK', 'XLF', 'XLE']}>
       <div
         ref={rootRef}
         className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden bg-slate-950 text-slate-200 dark:bg-slate-950 dark:text-slate-200 light:bg-slate-50 light:text-slate-900 transition-colors duration-300"

@@ -5,7 +5,7 @@ import {
 import { TICKERS } from '../../constants';
 import type { MainLineChartProps, ChartRangeSelection } from './types';
 import { calculateSMA } from '../../services/analysisService';
-import { useDashboard } from '../../contexts/DashboardContext';
+import { useDashboard, DashboardTab } from '../../contexts/DashboardContext';
 
 export const MainLineChart: React.FC<MainLineChartProps> = ({ 
   data, 
@@ -15,7 +15,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
   smaWindow = 20,
   showLiquidityFlow = false
 }) => {
-  const { isDarkMode, drilldownSector, activeDrilldownTickers } = useDashboard();
+  const { isDarkMode, drilldownSector, activeDrilldownTickers, activeTab } = useDashboard();
   const [rangeSelection, setRangeSelection] = useState<ChartRangeSelection | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
@@ -299,7 +299,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         const dataKey = sym === '^VIX' ? '^VIX_SCALED' : sym;
         const displayName = sym === '^VIX' 
           ? `${ticker.name} (auto-skalert ${vixScaleFactor.toFixed(2)}x)` 
-          : `${ticker.name} (Pris %)`;
+          : (activeTab === 'analysis' ? `${ticker.name} (Pris %)` : ticker.name);
 
         const lines = [
           <Line
