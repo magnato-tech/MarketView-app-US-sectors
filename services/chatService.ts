@@ -1,4 +1,5 @@
-import { SummaryStats, Period, MarketDataPoint, DerivedMetrics } from "../types";
+import { SummaryStats, Period, MarketDataPoint } from "../types";
+import { RangeSummaryRow } from "./analysisService";
 
 /**
  * AI Chat Service for MarketView
@@ -27,7 +28,7 @@ export const getChatResponse = async (
   history: ChatMessage[],
   context: {
     summary: SummaryStats[];
-    rangeSummary: DerivedMetrics[];
+    rangeSummary: RangeSummaryRow[];
     period: Period;
     currentTickers: string[];
   }
@@ -47,9 +48,10 @@ Nåværende periode: ${context.period}
 Valgte instrumenter: ${context.currentTickers.join(', ')}
 
 Markedsdata (Ranking og Performance):
-${context.rangeSummary.map(s => 
-  `- ${s.name} (${s.symbol}): Rank ${s.rank}, Endring ${s.changePct.toFixed(2)}%, Volatilitet ${s.volatility.toFixed(1)}%, Trend: ${s.trendStatus}`
-).join('\n')}
+${context.rangeSummary.map(s => {
+  const m = s.metrics;
+  return `- ${s.name} (${s.symbol}): Rank ${m?.rank || 'N/A'}, Endring ${s.changePct.toFixed(2)}%, Volatilitet ${m?.volatility.toFixed(1) || 'N/A'}%, Trend: ${m?.trendStatus || 'N/A'}`;
+}).join('\n')}
 `;
 
   const prompt = `
