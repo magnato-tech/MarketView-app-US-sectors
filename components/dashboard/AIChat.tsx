@@ -34,7 +34,8 @@ export const AIChat: React.FC = () => {
         summary,
         rangeSummary,
         period,
-        currentTickers: selectedTickers
+        currentTickers: selectedTickers,
+        chartData: data
       });
 
       const assistantMsg: ChatMessage = {

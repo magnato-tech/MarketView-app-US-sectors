@@ -31,6 +31,7 @@ export const getChatResponse = async (
     rangeSummary: RangeSummaryRow[];
     period: Period;
     currentTickers: string[];
+    chartData?: MarketDataPoint[];
   }
 ): Promise<ChatResponse> => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 
@@ -40,6 +41,38 @@ export const getChatResponse = async (
 
   if (!apiKey) {
     return { answer: "AI-chat er deaktivert (mangler API-nøkkel)." };
+  }
+
+  // Finn signifikante volum-topper eller divergenser i chartData
+  let divergenceContext = "";
+  if (context.chartData && context.chartData.length > 0) {
+    const data = context.chartData;
+    const lastIdx = data.length - 1;
+    
+    // Sjekk de siste punktene for volum-topper uten prisstigning
+    context.currentTickers.forEach(sym => {
+      if (sym.startsWith('^')) return; // Hopp over indekser som VIX
+      
+      const volKey = `${sym}_dollar_volume`;
+      const flowKey = `${sym}_FLOW`;
+      
+      // Finn max volum i perioden for å ha en referanse
+      const volumes = data.map(d => typeof d[volKey] === 'number' ? d[volKey] as number : 0);
+      const maxVol = Math.max(...volumes);
+      const avgVol = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+
+      // Se etter dager med volum > 2x snitt, men prisendring < 0.5%
+      data.forEach((point, i) => {
+        const v = point[volKey] as number;
+        const p = point[sym] as number;
+        const prevP = i > 0 ? data[i-1][sym] as number : p;
+        const priceChange = Math.abs(p - prevP);
+        
+        if (v > avgVol * 2 && priceChange < 0.5) {
+          divergenceContext += `- Divergens observert for ${sym} den ${point.timestamp}: Ekstremt høyt volum ($${(v/1e6).toFixed(1)}M), men nesten ingen prisbevegelse (${priceChange.toFixed(2)}%). Dette kan tyde på akkumulering eller distribusjon.\n`;
+        }
+      });
+    });
   }
 
   // Bygg kontekst for AI
@@ -52,11 +85,13 @@ ${context.rangeSummary.map(s => {
   const m = s.metrics;
   return `- ${s.name} (${s.symbol}): Rank ${m?.rank || 'N/A'}, Endring ${s.changePct.toFixed(2)}%, Volatilitet ${m?.volatility.toFixed(1) || 'N/A'}%, Trend: ${m?.trendStatus || 'N/A'}`;
 }).join('\n')}
+
+${divergenceContext ? `Spesielle observasjoner (Volum/Pris-analyse):\n${divergenceContext}` : ''}
 `;
 
   const prompt = `
 Du er en profesjonell Wall Street analytiker-assistent i appen MarketView.
-Brukeren stiller deg spørsmål om markedsdataene som er synlige i dashboardet.
+Brukeren stiller deg spørsmål om markedsdataene som er synlige i dashboardet, inkludert prisbevegelser og kapitalstrøm (volum).
 
 Kontekst fra dashboardet:
 ${marketContext}
@@ -64,9 +99,9 @@ ${marketContext}
 Instruksjoner:
 1. Svar kort, konsist og analytisk på norsk.
 2. Bruk kun dataene som er oppgitt over.
-3. Hvis brukeren spør om vinnere/tapere, referer til 'Rank' og 'Endring'.
-4. Hvis brukeren spør om risiko, referer til 'Volatilitet' og 'Trend'.
-5. Du kan foreslå handlinger hvis det er relevant (f.eks. se på en spesifikk sektor).
+3. Vær spesielt oppmerksom på 'Divergens' – hvis volumet (kapitalstrømmen) er høyt mens prisen står stille, forklar at dette ofte betyr institusjonell akkumulering (kjøp) eller distribusjon (salg).
+4. Hvis brukeren spør om topper i starten av mars eller andre perioder, referer til de spesifikke observasjonene i konteksten.
+5. Forklar at volum uten prisbevegelse betyr at det er en intens kamp mellom kjøpere og selgere på det nivået.
 
 Svar i JSON-format:
 {
