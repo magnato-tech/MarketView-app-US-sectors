@@ -12,6 +12,7 @@ import { MarketSummaryTable } from './dashboard/MarketSummaryTable';
 import { MainLineChart } from './dashboard/MainLineChart';
 import { RelativeAvkastningPanel } from './dashboard/RelativeAvkastningPanel';
 import { DrilldownTable } from './DrilldownTable';
+import { Leaderboard } from './dashboard/Leaderboard';
 import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { ErrorBoundary } from './ErrorBoundary';
 import { AnalysisBoard } from './AnalysisBoard';
@@ -116,52 +117,62 @@ const MainDashboard: React.FC<DashboardProps> = ({
 
         {periodIntervalBar}
 
-        {activeTab === 'dashboard' ? (
-          <>
-            <ErrorBoundary title="Kunne ikke laste AI-innsikt">
-              <AIInsightPanel aiInsight={aiInsight} period={period} />
-            </ErrorBoundary>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 space-y-6">
+            {activeTab === 'dashboard' ? (
+              <>
+                <ErrorBoundary title="Kunne ikke laste AI-innsikt">
+                  <AIInsightPanel aiInsight={aiInsight} period={period} />
+                </ErrorBoundary>
 
-            {/* Main Chart */}
-            <ErrorBoundary title="Kunne ikke laste grafen">
-              <RelativeAvkastningPanel
-                title="Relativ Avkastning"
-                subtitle="Benchmark-sammenligning (0% ved start)"
-                isFullscreen={false}
-                onToggleFullscreen={onEnterMainFullscreen}
-                summary={summary}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  {lineChart}
-                </ResponsiveContainer>
-              </RelativeAvkastningPanel>
-            </ErrorBoundary>
+                {/* Main Chart */}
+                <ErrorBoundary title="Kunne ikke laste grafen">
+                  <RelativeAvkastningPanel
+                    title="Relativ Avkastning"
+                    subtitle="Benchmark-sammenligning (0% ved start)"
+                    isFullscreen={false}
+                    onToggleFullscreen={onEnterMainFullscreen}
+                    summary={summary}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      {lineChart}
+                    </ResponsiveContainer>
+                  </RelativeAvkastningPanel>
+                </ErrorBoundary>
 
-            {drilldownSector && (
-              <ErrorBoundary title="Kunne ikke laste drilldown-tabellen">
-                <DrilldownTable />
+                {drilldownSector && (
+                  <ErrorBoundary title="Kunne ikke laste drilldown-tabellen">
+                    <DrilldownTable />
+                  </ErrorBoundary>
+                )}
+
+                {!drilldownSector && (
+                  <ErrorBoundary title="Kunne ikke laste tabellen">
+                    <MarketSummaryTable summary={summary} />
+                  </ErrorBoundary>
+                )}
+              </>
+            ) : (
+              <ErrorBoundary title="Kunne ikke laste analyseboardet">
+                <RelativeAvkastningPanel
+                  title="Analyseboard"
+                  subtitle="Teknisk dykk og sektorstatistikk"
+                  isFullscreen={false}
+                  onToggleFullscreen={onEnterMainFullscreen}
+                  summary={summary}
+                >
+                  <AnalysisBoard />
+                </RelativeAvkastningPanel>
               </ErrorBoundary>
             )}
+          </div>
 
-            {!drilldownSector && (
-              <ErrorBoundary title="Kunne ikke laste tabellen">
-                <MarketSummaryTable summary={summary} />
-              </ErrorBoundary>
-            )}
-          </>
-        ) : (
-          <ErrorBoundary title="Kunne ikke laste analyseboardet">
-            <RelativeAvkastningPanel
-              title="Analyseboard"
-              subtitle="Teknisk dykk og sektorstatistikk"
-              isFullscreen={false}
-              onToggleFullscreen={onEnterMainFullscreen}
-              summary={summary}
-            >
-              <AnalysisBoard />
-            </RelativeAvkastningPanel>
-          </ErrorBoundary>
-        )}
+          <div className="lg:col-span-4 space-y-6">
+            <ErrorBoundary title="Kunne ikke laste Leaderboard">
+              <Leaderboard />
+            </ErrorBoundary>
+          </div>
+        </div>
       </div>
     </div>
     </div>

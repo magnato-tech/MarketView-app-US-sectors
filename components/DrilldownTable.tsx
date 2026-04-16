@@ -77,11 +77,11 @@ export const DrilldownTable: React.FC = () => {
             {drilldownSummary.map((s) => {
               const isParent = s.symbol === drilldownSector;
               return (
-                  className={`transition-colors group ${
-                    isDarkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'
-                  } ${isParent ? (isDarkMode ? 'bg-blue-900/10' : 'bg-blue-50/50') : ''} ${
-                    !activeDrilldownTickers.includes(s.symbol) ? 'opacity-50' : ''
-                  }`}
+                <tr key={s.symbol} className={`transition-colors group ${
+                  isDarkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'
+                } ${isParent ? (isDarkMode ? 'bg-blue-900/10' : 'bg-blue-50/50') : ''} ${
+                  !activeDrilldownTickers.includes(s.symbol) ? 'opacity-50' : ''
+                }`}>
                   <td className="px-6 py-4">
                     <input
                       type="checkbox"
