@@ -12,6 +12,16 @@ export type ChartTooltipProps = {
   rangeSelection?: ChartRangeSelection | null;
 };
 
+/**
+ * Formaterer store tall med K, M, B forkortelser
+ */
+const formatLargeNumber = (val: number): string => {
+  if (val >= 1_000_000_000) return (val / 1_000_000_000).toFixed(2) + 'B';
+  if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + 'M';
+  if (val >= 1_000) return (val / 1_000).toFixed(1) + 'K';
+  return val.toString();
+};
+
 export function ChartTooltip({ 
   active, 
   payload, 
@@ -30,10 +40,14 @@ export function ChartTooltip({
     ? data[startIdx] 
     : (anchorIndex != null && data[anchorIndex] ? data[anchorIndex] : null);
 
-  const sorted = [...payload].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  // Separer volum fra priskurver
+  const volumeItems = payload.filter(p => String(p.dataKey).endsWith('_volume'));
+  const priceItems = payload.filter(p => !String(p.dataKey).endsWith('_volume') && !String(p.dataKey).endsWith('_SMA'));
+
+  const sortedPriceItems = [...priceItems].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
   return (
-    <div className="bg-slate-900/95 dark:bg-slate-900/95 light:bg-white/95 backdrop-blur-md border border-slate-700 dark:border-slate-700 light:border-slate-200 p-3 rounded-lg shadow-2xl text-xs min-w-[180px] transition-colors duration-300">
+    <div className="bg-slate-900/95 dark:bg-slate-900/95 light:bg-white/95 backdrop-blur-md border border-slate-700 dark:border-slate-700 light:border-slate-200 p-3 rounded-lg shadow-2xl text-xs min-w-[200px] transition-colors duration-300">
       <div className="flex justify-between items-center mb-1 border-b border-slate-800 dark:border-slate-800 light:border-slate-100 pb-1">
         <p className="font-bold text-slate-300 dark:text-slate-300 light:text-slate-900">{label}</p>
         {isRangeMode && (
@@ -56,10 +70,8 @@ export function ChartTooltip({
       )}
 
       <div className="space-y-1.5">
-        {sorted.map((entry, index) => {
+        {sortedPriceItems.map((entry, index) => {
           const key = String(entry.dataKey ?? index);
-          if (key.endsWith('_SMA')) return null; // Skip SMA in range tooltip for clarity
-
           const isVix = key === '^VIX' || key === '^VIX_SCALED';
           const raw = entry.value;
           let display: number;
@@ -68,9 +80,6 @@ export function ChartTooltip({
             const startVal = data[startIdx]?.[key];
             const endVal = data[endIdx]?.[key];
             if (typeof startVal === 'number' && typeof endVal === 'number') {
-              // Calculate relative change within the selected range
-              // Since values are already relative to the chart start, 
-              // we calculate the difference in percentage points
               display = endVal - startVal;
             } else {
               display = typeof raw === 'number' ? raw : 0;
@@ -96,6 +105,23 @@ export function ChartTooltip({
             </div>
           );
         })}
+
+        {/* Volum-seksjon nederst */}
+        {volumeItems.length > 0 && (
+          <div className="mt-2 pt-1 border-t border-slate-800 dark:border-slate-800 light:border-slate-100">
+            {volumeItems.map((v, i) => (
+              <div key={`vol-${i}`} className="flex items-center justify-between gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                  <span className="text-slate-500 dark:text-slate-500 light:text-slate-400">Volum ({v.name?.replace('Volum', '').trim()}):</span>
+                </div>
+                <span className="font-mono font-bold text-slate-300 dark:text-slate-300 light:text-slate-700">
+                  {formatLargeNumber(v.value ?? 0)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
