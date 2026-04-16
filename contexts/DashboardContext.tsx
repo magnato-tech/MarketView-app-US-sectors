@@ -29,6 +29,19 @@ interface DashboardContextType {
   onPeriodChange: (period: Period) => void;
   onIntervalChange: (interval: Interval) => void;
   refreshData: () => void;
+  // Analyse-innstillinger som skal huskes på tvers av re-renders
+  analysisSettings: {
+    showSMA: boolean;
+    smaWindow: number;
+    showLiquidityFlow: boolean;
+    useDefaultSelection: boolean;
+  };
+  setAnalysisSettings: React.Dispatch<React.SetStateAction<{
+    showSMA: boolean;
+    smaWindow: number;
+    showLiquidityFlow: boolean;
+    useDefaultSelection: boolean;
+  }>>;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -40,6 +53,14 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
   const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
   const [drilldownSector, setDrilldownSectorState] = useState<string | null>(null);
   const [previousTickers, setPreviousTickers] = useState<string[]>([]);
+  
+  // Analyse-innstillinger flyttet til Context for å overleve re-renders av AnalysisBoard
+  const [analysisSettings, setAnalysisSettings] = useState({
+    showSMA: true,
+    smaWindow: 20,
+    showLiquidityFlow: false,
+    useDefaultSelection: true
+  });
   
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -135,6 +156,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     onPeriodChange: handlePeriodChange,
     onIntervalChange: handleIntervalChange,
     refreshData,
+    analysisSettings,
+    setAnalysisSettings,
   };
 
   return (

@@ -8,10 +8,8 @@ import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { formatPercent } from '../utils/formatters';
 
 export const AnalysisBoard: React.FC = () => {
-  const { data, summary, aiInsight, period, activeTickers, handleTickerToggle } = useDashboard();
-  const [smaWindow, setSmaWindow] = useState(20);
-  const [showSMA, setShowSMA] = useState(true);
-  const [showLiquidityFlow, setShowLiquidityFlow] = useState(false);
+  const { data, summary, aiInsight, period, activeTickers, analysisSettings, setAnalysisSettings } = useDashboard();
+  const { showSMA, smaWindow, showLiquidityFlow, useDefaultSelection } = analysisSettings;
 
   // Standardutvalg for analyse: Kun ankerindekser (S&P 500, Nasdaq 100, VIX)
   const defaultAnalysisSymbols = ['^GSPC', '^NDX', '^VIX'];
@@ -21,26 +19,25 @@ export const AnalysisBoard: React.FC = () => {
     .filter(s => defaultAnalysisSymbols.includes(s.symbol))
     .map(s => s.symbol);
 
-  // Vi bruker en state for å huske om brukeren manuelt har overstyrt standardutvalget
-  const [useDefaultSelection, setUseDefaultSelection] = useState(true);
-
-  // Hvis vi har ankerindekser tilgjengelig, bruk dem som standard hvis ikke brukeren har valgt noe annet.
   const analysisTickers = (useDefaultSelection && availableDefaults.length > 0)
     ? availableDefaults
     : activeTickers;
 
   const handleSmaClick = (w: number) => {
     if (smaWindow === w && showSMA) {
-      setShowSMA(false);
+      setAnalysisSettings(prev => ({ ...prev, showSMA: false }));
     } else {
-      setSmaWindow(w);
-      setShowSMA(true);
+      setAnalysisSettings(prev => ({ ...prev, smaWindow: w, showSMA: true }));
     }
   };
 
   // Funksjon for å bytte standardutvalg som også husker valget
   const toggleDefaultSelection = () => {
-    setUseDefaultSelection(!useDefaultSelection);
+    setAnalysisSettings(prev => ({ ...prev, useDefaultSelection: !prev.useDefaultSelection }));
+  };
+
+  const toggleLiquidityFlow = () => {
+    setAnalysisSettings(prev => ({ ...prev, showLiquidityFlow: !prev.showLiquidityFlow }));
   };
 
   const renderTooltip = (props: { 
@@ -83,7 +80,7 @@ export const AnalysisBoard: React.FC = () => {
             </button>
             <div className="w-px h-4 bg-slate-800 dark:bg-slate-800 light:bg-slate-200 mx-1"></div>
             <button
-              onClick={() => setShowLiquidityFlow(!showLiquidityFlow)}
+              onClick={toggleLiquidityFlow}
               className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-2 ${
                 showLiquidityFlow
                   ? 'bg-indigo-600 text-white' 
