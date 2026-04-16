@@ -1,5 +1,15 @@
 import { MarketDataPoint, SummaryStats, Period, Interval } from '../types';
 
+export type DerivedMetrics = {
+  rank: number;
+  volatility: number;
+  maxDrawdown: number;
+  trendStatus: 'Bull' | 'Bear' | 'Neutral';
+  momentumScore: number;
+  regime: 'High Vol' | 'Low Vol' | 'Stable';
+  relativeStrength: number;
+};
+
 export type RangeSummaryRow = {
   symbol: string;
   name: string;
@@ -8,6 +18,39 @@ export type RangeSummaryRow = {
   changePct: number;
   isBenchmark?: boolean;
   color: string;
+  metrics?: DerivedMetrics;
+};
+
+/**
+ * Beregner volatilitet (standardavvik av daglig avkastning)
+ */
+export const calculateVolatility = (prices: number[]): number => {
+  if (prices.length < 2) return 0;
+  const returns = [];
+  for (let i = 1; i < prices.length; i++) {
+    if (prices[i-1] !== 0) {
+      returns.push((prices[i] - prices[i-1]) / prices[i-1]);
+    }
+  }
+  if (returns.length === 0) return 0;
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length;
+  return Math.sqrt(variance) * Math.sqrt(252) * 100; // Annualisert %
+};
+
+/**
+ * Beregner Max Drawdown
+ */
+export const calculateMaxDrawdown = (prices: number[]): number => {
+  if (prices.length === 0) return 0;
+  let maxSoFar = prices[0];
+  let maxDD = 0;
+  for (const p of prices) {
+    if (p > maxSoFar) maxSoFar = p;
+    const dd = (p - maxSoFar) / maxSoFar;
+    if (dd < maxDD) maxDD = dd;
+  }
+  return Math.abs(maxDD) * 100;
 };
 
 /**
@@ -22,23 +65,52 @@ export const calculateRangeSummary = (
   const firstPoint = data[0];
   const lastPoint = data[data.length - 1];
 
-  return summary.map(s => {
-    const startVal = firstPoint[s.symbol];
-    const endVal = lastPoint[s.symbol];
+  // Finn benchmark (f.eks. SPY eller første index-lignende ticker)
+  const benchmarkSymbol = summary.find(s => s.symbol === 'SPY' || s.symbol.startsWith('^'))?.symbol || summary[0]?.symbol;
+  const benchmarkPrices = data.map(d => d[benchmarkSymbol] as number).filter(v => typeof v === 'number');
+  const benchmarkReturn = benchmarkPrices.length >= 2 
+    ? (benchmarkPrices[benchmarkPrices.length-1] - benchmarkPrices[0]) / benchmarkPrices[0] 
+    : 0;
 
-    const startPrice = typeof startVal === 'number' ? startVal : 0;
-    const endPrice = typeof endVal === 'number' ? endVal : 0;
+  const rows = summary.map(s => {
+    const prices = data.map(d => d[s.symbol] as number).filter(v => typeof v === 'number');
+    const startPrice = prices[0] || 0;
+    const endPrice = prices[prices.length - 1] || 0;
+    const changePct = startPrice !== 0 ? ((endPrice - startPrice) / startPrice) * 100 : 0;
     
+    const vol = calculateVolatility(prices);
+    const mdd = calculateMaxDrawdown(prices);
+    const rs = changePct - (benchmarkReturn * 100);
+
+    const metrics: DerivedMetrics = {
+      rank: 0, // Blir satt etterpå
+      volatility: parseFloat(vol.toFixed(2)),
+      maxDrawdown: parseFloat(mdd.toFixed(2)),
+      trendStatus: changePct > 2 ? 'Bull' : changePct < -2 ? 'Bear' : 'Neutral',
+      momentumScore: parseFloat((changePct / (vol || 1)).toFixed(2)),
+      regime: vol > 25 ? 'High Vol' : vol < 12 ? 'Low Vol' : 'Stable',
+      relativeStrength: parseFloat(rs.toFixed(2))
+    };
+
     return {
       symbol: s.symbol,
       name: s.name,
       startPrice,
       endPrice,
-      changePct: s.percentChange,
+      changePct: parseFloat(changePct.toFixed(2)),
       color: s.color,
-      isBenchmark: s.symbol.startsWith('^')
+      isBenchmark: s.symbol === benchmarkSymbol,
+      metrics
     };
   });
+
+  // Sorter og sett rank basert på changePct
+  return rows
+    .sort((a, b) => b.changePct - a.changePct)
+    .map((row, idx) => ({
+      ...row,
+      metrics: row.metrics ? { ...row.metrics, rank: idx + 1 } : undefined
+    }));
 };
 
 /**
