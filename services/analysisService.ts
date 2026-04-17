@@ -87,12 +87,13 @@ export const calculateRangeSummary = (
       const rs = changePct - (benchmarkReturn * 100);
 
       // Beregn Volum-momentum (Flow Score)
-      // Vi sammenligner snittvolum siste 3 dager mot baseline (starten av perioden)
       const volKey = `${s.symbol}_dollar_volume`;
-      const volumes = data.map(d => d[volKey] as number).filter(v => typeof v === 'number' && !isNaN(v));
+      const volumes = data.map(d => d[volKey] as number).filter(v => typeof v === 'number' && isFinite(v));
       const baselineVol = volumes.length > 0 ? volumes[0] : 0;
-      const recentVol = volumes.length >= 3 
-        ? volumes.slice(-3).reduce((a, b) => a + b, 0) / 3 
+      
+      // Bruk et 5-dagers snitt for "recent volume" for å unngå ekstreme utslag på enkeltdager
+      const recentVol = volumes.length >= 5 
+        ? volumes.slice(-5).reduce((a, b) => a + b, 0) / 5 
         : (volumes[volumes.length - 1] || 0);
       
       const flowScore = baselineVol > 0 
@@ -101,7 +102,7 @@ export const calculateRangeSummary = (
 
       const metrics: DerivedMetrics = {
         rank: 0,
-        volatility: isFinite(vol) ? parseFloat(vol.toFixed(2)) : 0,
+        volatility: isFinite(vol) && vol < 1000 ? parseFloat(vol.toFixed(2)) : 0,
         maxDrawdown: isFinite(mdd) ? parseFloat(mdd.toFixed(2)) : 0,
         trendStatus: changePct > 2 ? 'Bull' : changePct < -2 ? 'Bear' : 'Neutral',
         momentumScore: isFinite(changePct / (vol || 1)) ? parseFloat((changePct / (vol || 1)).toFixed(2)) : 0,

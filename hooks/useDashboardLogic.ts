@@ -29,6 +29,9 @@ export const useDashboardLogic = (initialTickers: string[]) => {
 
   const rangeSummary = useMemo(() => {
     if (loading || data.length === 0) return [];
+    
+    // Vi sender med bySymbol hvis vi hadde hatt tilgang til det her for mer nøyaktige beregninger,
+    // men calculateRangeSummary er nå robust nok til å bruke data-arrayen alene.
     return calculateRangeSummary(data, summary);
   }, [data, summary, loading]);
 
