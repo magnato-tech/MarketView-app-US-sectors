@@ -3,6 +3,8 @@ import { Period, Interval, MarketDataPoint, SummaryStats } from '../types';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import { TICKERS } from '../constants';
 
+import { RangeSummaryRow } from '../services/analysisService';
+
 export type DashboardTab = 'dashboard' | 'analysis';
 
 interface DashboardContextType {
@@ -13,7 +15,7 @@ interface DashboardContextType {
   summary: SummaryStats[];
   loading: boolean;
   aiInsight: string;
-  rangeSummary: any[]; // Adjust type if needed
+  rangeSummary: RangeSummaryRow[];
   activeTickers: string[];
   activeTab: DashboardTab;
   isDarkMode: boolean;

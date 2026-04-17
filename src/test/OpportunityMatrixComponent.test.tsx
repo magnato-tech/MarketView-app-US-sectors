@@ -74,8 +74,8 @@ describe('OpportunityMatrix Component', () => {
     expect(screen.queryByText('SPY')).not.toBeInTheDocument();
   });
 
-  it('should return null if no non-benchmark tickers are provided', () => {
-    const { container } = render(<OpportunityMatrix summary={[mockSummary[1]]} />);
-    expect(container.firstChild).toBeNull();
+  it('should show empty state if no non-benchmark tickers are provided', () => {
+    render(<OpportunityMatrix summary={[mockSummary[1]]} />);
+    expect(screen.getByText(/Ingen data å sammenligne/i)).toBeInTheDocument();
   });
 });

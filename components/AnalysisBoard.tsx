@@ -5,19 +5,10 @@ import { MainLineChart } from './dashboard/MainLineChart';
 import { ChartTooltip } from './dashboard/ChartTooltip';
 import { AIInsightPanel } from './dashboard/AIInsightPanel';
 import { OpportunityMatrix } from './dashboard/OpportunityMatrix';
+import { InfoIcon } from './ui/InfoIcon';
+import { Card } from './ui/Card';
 import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { formatPercent } from '../utils/formatters';
-
-const InfoIcon = ({ title }: { title: string }) => (
-  <div className="group relative inline-block cursor-help ml-1" title={title}>
-    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 hover:text-indigo-400">
-      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-    </svg>
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none border border-slate-700 shadow-xl">
-      {title}
-    </div>
-  </div>
-);
 
 export const AnalysisBoard: React.FC = () => {
   const { data, summary, aiInsight, rangeSummary, period, activeTickers, analysisSettings, setAnalysisSettings } = useDashboard();
@@ -56,12 +47,10 @@ export const AnalysisBoard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Technical Analysis Chart */}
-      <div className="bg-slate-900/50 dark:bg-slate-900/50 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 shadow-xl transition-colors duration-300">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-lg font-bold text-white dark:text-white light:text-slate-900">Teknisk Trendanalyse</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-500 light:text-slate-400">Relativ avkastning med Simple Moving Average (SMA)</p>
-          </div>
+      <Card 
+        title="Teknisk Trendanalyse" 
+        subtitle="Relativ avkastning med Simple Moving Average (SMA)"
+        headerAction={
           <div className="flex items-center gap-3 bg-slate-950 dark:bg-slate-950 light:bg-slate-100 p-1 rounded-lg border border-slate-800 dark:border-slate-800 light:border-slate-200">
             <button
               onClick={toggleLiquidityFlow}
@@ -92,8 +81,8 @@ export const AnalysisBoard: React.FC = () => {
               </button>
             ))}
           </div>
-        </div>
-        
+        }
+      >
         <div className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <MainLineChart 
@@ -106,7 +95,7 @@ export const AnalysisBoard: React.FC = () => {
             />
           </ResponsiveContainer>
         </div>
-      </div>
+      </Card>
 
       {/* Opportunity Matrix */}
       <OpportunityMatrix summary={rangeSummary} />
@@ -116,8 +105,7 @@ export const AnalysisBoard: React.FC = () => {
         <AIInsightPanel aiInsight={aiInsight} period={period} />
 
         {/* Volatility / Stats Panel */}
-        <div className="bg-slate-900/50 dark:bg-slate-900/50 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 shadow-xl transition-colors duration-300">
-          <h3 className="text-lg font-bold text-white dark:text-white light:text-slate-900 mb-4">Sektor-statistikk</h3>
+        <Card title="Sektor-statistikk">
           <div className="space-y-4">
             {summary.map(s => (
               <div key={s.symbol} className="flex items-center justify-between p-3 bg-slate-950/50 dark:bg-slate-950/50 light:bg-slate-50 rounded-xl border border-slate-800/50 dark:border-slate-800/50 light:border-slate-100">
@@ -136,7 +124,7 @@ export const AnalysisBoard: React.FC = () => {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
