@@ -55,13 +55,7 @@ const AppContent: React.FC<{
 // Temporary wrapper for Sidebar until it's also updated to use context if needed, 
 // or just to keep App.tsx clean.
 const SidebarWrapper: React.FC = () => {
-  const { selectedTickers, handleTickerToggle } = useDashboard();
-  return (
-    <Sidebar
-      selectedTickers={selectedTickers}
-      onTickerToggle={handleTickerToggle}
-    />
-  );
+  return <Sidebar />;
 };
 
 export default App;

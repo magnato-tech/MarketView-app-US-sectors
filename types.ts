@@ -22,6 +22,14 @@ export interface SummaryStats {
   lastPrice: number;
   percentChange: number;
   color: string;
+  // Nye fundamentale felt
+  marketCap?: number;
+  peRatio?: number;
+  psRatio?: number;
+  dividendYield?: number;
+  high52w?: number;
+  low52w?: number;
+  volume?: number;
 }
 
 export interface AppState {

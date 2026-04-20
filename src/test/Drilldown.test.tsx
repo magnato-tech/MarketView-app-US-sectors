@@ -2,9 +2,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { screen, fireEvent } from '@testing-library/react';
 import Sidebar from '../../components/Sidebar';
-import { DashboardProvider } from '../../contexts/DashboardContext';
 import { TICKERS } from '../../constants';
 import { renderWithProviders } from './helpers';
+import { useDashboard } from '../../contexts/DashboardContext';
 
 // Mocking useDashboardLogic to avoid actual API calls
 vi.mock('../../hooks/useDashboardLogic', () => ({
@@ -28,7 +28,7 @@ vi.mock('../../hooks/useDashboardLogic', () => ({
   })
 }));
 
-describe('Drilldown Functionality', () => {
+describe('Sidebar Navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     
@@ -48,25 +48,8 @@ describe('Drilldown Functionality', () => {
     });
   });
 
-  it('renders drilldown arrows for sectors with children', () => {
-    const { container } = renderWithProviders(
-      <Sidebar selectedTickers={['XLK']} onTickerToggle={vi.fn()} />,
-      { initialTickers: ['XLK'] }
-    );
-
-    // Debug: skriv ut HTML hvis det feiler
-    // console.log(container.innerHTML);
-
-    // Sjekk at Teknologi (XLK) har en drilldown-knapp (pil)
-    const drilldownButtons = screen.getAllByTitle(/Åpne drilldown/i);
-    expect(drilldownButtons.length).toBeGreaterThan(0);
-  });
-
-  it('verifies that all major sectors have drilldown capability', () => {
-    const { container } = renderWithProviders(
-      <Sidebar selectedTickers={[]} onTickerToggle={vi.fn()} />,
-      { initialTickers: [] }
-    );
+  it('renders major sectors in the sidebar', () => {
+    renderWithProviders(<Sidebar />);
 
     const majorSectors = [
       'Teknologi', 'Helse', 'Finans', 'Eiendom', 'Infrastruktur', 
@@ -75,36 +58,8 @@ describe('Drilldown Functionality', () => {
     ];
 
     majorSectors.forEach(sectorName => {
-      const textElement = screen.getByText(new RegExp(`^${sectorName}$`, 'i'));
-      // Vi må finne den ytre div-en som inneholder både label og button
-      const row = textElement.closest('div.flex.items-center.group');
-      const button = row?.querySelector('button[title="Åpne drilldown"]');
-      if (!button) {
-        throw new Error(`Sector ${sectorName} is missing drilldown button. Row classes: ${row?.className}. Parent classes: ${textElement.parentElement?.className}`);
-      }
-      expect(button).toBeTruthy();
+      expect(screen.getByText(new RegExp(`^${sectorName}$`, 'i'))).toBeTruthy();
     });
-  });
-
-  it('toggles drilldown state when clicking the arrow', () => {
-    renderWithProviders(
-      <Sidebar selectedTickers={['XLK']} onTickerToggle={vi.fn()} />,
-      { initialTickers: ['XLK'] }
-    );
-
-    const techText = screen.getByText(/^Teknologi$/i);
-    const techRow = techText.closest('div.flex.items-center.group');
-    const techButton = techRow?.querySelector('button[title="Åpne drilldown"]');
-    
-    if (techButton) {
-      fireEvent.click(techButton);
-      // Etter klikk skal tittelen endre seg til "Lukk drilldown"
-      expect(techButton.getAttribute('title')).toBe('Lukk drilldown');
-      // Ikonet skal ha 'rotate-90' klasse
-      expect(techButton.className).toContain('rotate-90');
-    } else {
-      throw new Error('Tech drilldown button not found');
-    }
   });
 
   it('verifies that ETFs are correctly linked to parents in constants', () => {

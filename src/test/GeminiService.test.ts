@@ -3,8 +3,8 @@ import { getMarketInsights } from '../../services/geminiService';
 
 describe('GeminiService quality gates', () => {
   const mockSummary = [
-    { symbol: '^NDX', name: 'Nasdaq 100', percentChange: 2.5, color: '#000' },
-    { symbol: 'XLE', name: 'Energy', percentChange: -1.2, color: '#000' }
+    { symbol: '^NDX', name: 'Nasdaq 100', percentChange: 2.5, color: '#000', lastPrice: 18000 },
+    { symbol: 'XLE', name: 'Energy', percentChange: -1.2, color: '#000', lastPrice: 90 }
   ];
 
   const recentData = [
@@ -91,10 +91,10 @@ describe('GeminiService quality gates', () => {
 
     const result = await getMarketInsights(mockSummary, '6mo', recentData);
 
-    expect(result).toContain('Analytikerkonsensus:');
-    expect(result).toContain('Sektoranbefaling nå:');
-    expect(result.toLowerCase()).toContain('sektoranbefaling');
-    expect(result.toLowerCase()).not.toContain('markedet har de siste\n\nutsikter for neste periode:\nmarkedet har de siste');
+    expect(result.analysis).toContain('Analytikerkonsensus:');
+    expect(result.analysis).toContain('Sektoranbefaling nå:');
+    expect(result.analysis.toLowerCase()).toContain('sektoranbefaling');
+    expect(result.analysis.toLowerCase()).not.toContain('markedet har de siste\n\nutsikter for neste periode:\nmarkedet har de siste');
   });
 
   it('keeps rich structured analysis from model when quality is good', async () => {
@@ -102,8 +102,8 @@ describe('GeminiService quality gates', () => {
 
     const result = await getMarketInsights(mockSummary, '6mo', recentData);
 
-    expect(result).toContain('Riskon fortsetter');
-    expect(result).toContain('VIXbrudd over 25');
+    expect(result.analysis).toContain('Riskon fortsetter');
+    expect(result.analysis).toContain('VIXbrudd over 25');
   });
 
   it('falls back to next model when first model is not found', async () => {
@@ -111,7 +111,7 @@ describe('GeminiService quality gates', () => {
 
     const result = await getMarketInsights(mockSummary, '6mo', recentData);
 
-    expect(result).toContain('Analytikerkonsensus:');
+    expect(result.analysis).toContain('Analytikerkonsensus:');
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
   });
 
@@ -140,11 +140,11 @@ describe('GeminiService quality gates', () => {
   it('detects and injects divergence signals into prompt context', async () => {
     const fetchMock = setupFetchMock('rich');
     const divergenceSummary = [
-      { symbol: 'XLB', name: 'Materialer', percentChange: 5.0, color: '#000' },
-      { symbol: 'XLE', name: 'Energi', percentChange: -2.5, color: '#000' }
+      { symbol: 'XLB', name: 'Materialer', percentChange: 5.0, color: '#000', lastPrice: 100 },
+      { symbol: 'XLE', name: 'Energi', percentChange: -2.5, color: '#000', lastPrice: 100 }
     ];
 
-    await getMarketInsights(divergenceSummary, '1mo', recentData);
+    const result = await getMarketInsights(divergenceSummary, '1mo', recentData);
 
     const geminiCall = fetchMock.mock.calls.find((call) =>
       String(call[0]).includes('generateContent')
@@ -154,6 +154,7 @@ describe('GeminiService quality gates', () => {
 
     expect(prompt).toContain('Divergens- og regimesignaler');
     expect(prompt).toContain('Råvarer stiger kraftig mens energi faller');
+    expect(result.analysis).toContain('Riskon fortsetter');
   });
 
   it('triggers fallback if AI ignores required turning point dates', async () => {
@@ -179,11 +180,11 @@ describe('GeminiService quality gates', () => {
       { timestamp: '2026-03-23', '^NDX': 90 },
       { timestamp: '2026-03-27', '^NDX': 110 }
     ];
-    const summary = [{ symbol: '^NDX', name: 'Nasdaq', percentChange: 10, color: '#000' }];
+    const summary = [{ symbol: '^NDX', name: 'Nasdaq', percentChange: 10, color: '#000', lastPrice: 110 }];
 
     const result = await getMarketInsights(summary, '1mo', turningData);
 
     // Skal ha brukt fallback fordi 2026-03-27 mangler i AI-svaret
-    expect(result).toContain('Oppsummert fra dagens markedskommentarer');
+    expect(result.analysis).toContain('Oppsummert fra dagens markedskommentarer');
   });
 });

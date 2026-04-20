@@ -1,23 +1,14 @@
-/**
- * Tekstkatalog for MarketView – norsk og engelsk.
- *
- * Strukturen er nestet per UI-seksjon. Bruk dot-notasjon i `t()`:
- *   t('sidebar.theme.toLight')
- *
- * `no` er kildespråket. Når du legger til en ny nøkkel, legg den
- * inn begge steder så TypeScript fanger opp manglende oversettelser.
- */
-
-import { Language } from './types';
+import { Language, MessageTree } from './types';
 
 const no = {
-  common: {
+    common: {
     loading: 'Laster...',
     retry: 'Prøv igjen',
     close: 'Lukk',
     back: 'Tilbake',
     none: 'Ingen',
     unavailable: 'Ikke tilgjengelig',
+    info: 'Informasjon',
   },
   sidebar: {
     appTitle: 'MarketView',
@@ -57,7 +48,6 @@ const no = {
     loadingMarketData: 'Analyserer Markedsdata...',
     tabs: {
       dashboard: 'Dashboard',
-      analysis: 'Analyse',
       portfolio: 'Portefølje',
     },
     fullscreen: {
@@ -66,14 +56,10 @@ const no = {
     },
   },
   analysis: {
-    technicalTitle: 'Teknisk Trendanalyse',
-    technicalSubtitle: 'Relativ avkastning med Simple Moving Average (SMA)',
     capitalFlow: 'Kapitalstrøm',
     capitalFlowTooltip: 'Vis hver sektors andel av total handelsverdi',
     capitalFlowInfo: 'Viser momentum i handelsvolum (dollarverdi) relativt til starten av perioden',
     smaLabel: 'SMA:',
-    sectorStatsTitle: 'Sektor-statistikk',
-    return: 'Avkastning',
   },
   marketSummary: {
     title: 'Markedsoversikt',
@@ -97,16 +83,30 @@ const no = {
   leaderboard: {
     winnerLast: 'Vinner siste {period}',
     totalReturn: 'Total avkastning',
-    momentumLeaders: 'Momentum-ledere',
-    meanReversion: 'Potensielle snuoperasjoner?',
-    metrics: {
-      relStrength: 'Rel. styrke',
-      volatility: 'Volatilitet',
-      maxDrawdown: 'Max nedtrekk',
-    },
-    etfDetails: {
-      title: 'ETF-detaljer',
+      momentumLeaders: 'Momentum-ledere',
+      meanReversion: 'Potensielle snuoperasjoner?',
+      metrics: {
+        relStrength: 'Rel. styrke',
+        volatility: 'Volatilitet',
+        maxDrawdown: 'Maks fall',
+        marketCap: 'Markedsverdi',
+        peRatio: 'P/E',
+        psRatio: 'P/S',
+        dividendYield: 'Yield',
+        high52w: '52u Høy',
+        low52w: '52u Lav',
+        volume: 'Volum',
+        momentum1w: 'Momentum 1u',
+        momentum1m: 'Momentum 1m',
+        momentum3m: 'Momentum 3m',
+        aum: 'Forvaltning (AUM)',
+        holdingsCount: 'Antall aksjer',
+      },
+      etfDetails: {
+      title: 'Detaljer',
       holdings: 'Topp 10 beholdninger',
+      holdingsHint: 'Velg rader i tabellen under for å sammenligne instrumenter i grafen.',
+      viewHoldingChart: 'Legg til / fjern fra graf',
       exposure: 'Eksponering',
       kpi: {
         expenseRatio: 'Kostnadsgrad',
@@ -116,8 +116,14 @@ const no = {
       },
       name: 'Navn',
       weight: 'Vekt',
-      about: 'Om fondet',
+      about: 'Om instrumentet',
     },
+  },
+  etfDrilldown: {
+    badge: 'ETF-drilldown',
+    exit: 'Avslutt drilldown',
+    noSiblings: 'kun moder-ETF',
+    siblingsCount: '{n} avkryssede aksjer',
   },
   aiInsight: {
     titlePrefix: 'Vår',
@@ -147,7 +153,7 @@ const no = {
     rangeSelection: 'Periodevalg',
     rangeFrom: 'Utvikling fra {date}',
     vsAnchor: 'Tall vs. start av markering ({date})',
-    vsPeriodStart: 'Tall vs. start av Yahoo-periode',
+    vsPeriodStart: 'Tall vs. start av Yahoo periode',
     flowSection: 'Volum-momentum (vs. start)',
     valueLabel: 'Verdi',
     totalTraded: 'Total verdi handlet',
@@ -179,17 +185,12 @@ const no = {
       table: 'tabellen',
       leaderboard: 'Leaderboard',
       aiChat: 'AI-chat',
-      analysisBoard: 'analyseboardet',
     },
   },
   panel: {
     titleRelative: 'Relativ avkastning',
     subtitleRelative: 'Benchmark-sammenligning (0% ved start)',
-    titleAnalysis: 'Analyseboard',
-    subtitleAnalysis: 'Teknisk dykk og sektorstatistikk',
-    titleTechnical: 'Teknisk analyse',
     subtitleFullscreenDashboard: 'Fullskjerm — sidefelt til venstre',
-    subtitleFullscreenAnalysis: 'Fullskjerm — teknisk dykk',
     enterFullscreen: 'Fullskjerm graf',
     exitFullscreen: 'Avslutt fullskjerm',
   },
@@ -211,7 +212,7 @@ const no = {
     emptyPositions: 'Du har ingen aktive posisjoner.',
     emptyHistory: 'Ingen transaksjoner utført ennå.',
     autoPilot: 'AI Auto-pilot',
-    autoPilotDesc: 'La AI utføre handler automatisk basert på ukentlige analyser.',
+    autoPilotDesc: 'Let AI utføre handler automatisk basert på ukentlige analyser.',
     columns: {
       symbol: 'Ticker',
       quantity: 'Antall',
@@ -232,16 +233,17 @@ const no = {
       success: 'Handel utført!',
     }
   }
-} as const;
+} satisfies MessageTree;
 
-const en: typeof no = {
-  common: {
+const en: MessageTree = {
+    common: {
     loading: 'Loading...',
     retry: 'Try again',
     close: 'Close',
     back: 'Back',
     none: 'None',
     unavailable: 'Not available',
+    info: 'Information',
   },
   sidebar: {
     appTitle: 'MarketView',
@@ -281,7 +283,6 @@ const en: typeof no = {
     loadingMarketData: 'Analyzing market data...',
     tabs: {
       dashboard: 'Dashboard',
-      analysis: 'Analysis',
       portfolio: 'Portfolio',
     },
     fullscreen: {
@@ -290,14 +291,10 @@ const en: typeof no = {
     },
   },
   analysis: {
-    technicalTitle: 'Technical Trend Analysis',
-    technicalSubtitle: 'Relative performance with Simple Moving Average (SMA)',
     capitalFlow: 'Capital flow',
-    capitalFlowTooltip: 'Show each sector\u2019s share of total dollar volume',
+    capitalFlowTooltip: 'Show each sector’s share of total dollar volume',
     capitalFlowInfo: 'Shows momentum in trading volume (dollar value) relative to the start of the period',
     smaLabel: 'SMA:',
-    sectorStatsTitle: 'Sector statistics',
-    return: 'Return',
   },
   marketSummary: {
     title: 'Market overview',
@@ -321,16 +318,30 @@ const en: typeof no = {
   leaderboard: {
     winnerLast: 'Top performer last {period}',
     totalReturn: 'Total return',
-    momentumLeaders: 'Momentum leaders',
-    meanReversion: 'Mean reversion?',
-    metrics: {
-      relStrength: 'Rel. strength',
-      volatility: 'Volatility',
-      maxDrawdown: 'Max drawdown',
-    },
-    etfDetails: {
-      title: 'ETF Details',
+      momentumLeaders: 'Momentum leaders',
+      meanReversion: 'Mean reversion?',
+      metrics: {
+        relStrength: 'Rel. Strength',
+        volatility: 'Volatility',
+        maxDrawdown: 'Max Drawdown',
+        marketCap: 'Market Cap',
+        peRatio: 'P/E',
+        psRatio: 'P/S',
+        dividendYield: 'Yield',
+        high52w: '52w High',
+        low52w: '52w Low',
+        volume: 'Volume',
+        momentum1w: 'Momentum 1w',
+        momentum1m: 'Momentum 1m',
+        momentum3m: 'Momentum 3m',
+        aum: 'Assets (AUM)',
+        holdingsCount: 'Holdings',
+      },
+      etfDetails: {
+      title: 'Details',
       holdings: 'Top 10 Holdings',
+      holdingsHint: 'Select rows in the table below to compare instruments in the chart.',
+      viewHoldingChart: 'Add / remove from chart',
       exposure: 'Exposure',
       kpi: {
         expenseRatio: 'Expense Ratio',
@@ -340,8 +351,14 @@ const en: typeof no = {
       },
       name: 'Name',
       weight: 'Weight',
-      about: 'About the fund',
+      about: 'About the instrument',
     },
+  },
+  etfDrilldown: {
+    badge: 'ETF drilldown',
+    exit: 'Exit drilldown',
+    noSiblings: 'parent ETF only',
+    siblingsCount: '{n} sibling stocks selected',
   },
   aiInsight: {
     titlePrefix: 'Our',
@@ -403,17 +420,12 @@ const en: typeof no = {
       table: 'the table',
       leaderboard: 'the leaderboard',
       aiChat: 'AI chat',
-      analysisBoard: 'the analysis board',
     },
   },
   panel: {
     titleRelative: 'Relative performance',
     subtitleRelative: 'Benchmark comparison (0% at start)',
-    titleAnalysis: 'Analysis board',
-    subtitleAnalysis: 'Technical deep-dive and sector statistics',
-    titleTechnical: 'Technical analysis',
-    subtitleFullscreenDashboard: 'Fullscreen \u2014 sidebar to the left',
-    subtitleFullscreenAnalysis: 'Fullscreen \u2014 technical deep-dive',
+    subtitleFullscreenDashboard: 'Fullscreen — sidebar to the left',
     enterFullscreen: 'Fullscreen chart',
     exitFullscreen: 'Exit fullscreen',
   },
@@ -458,6 +470,6 @@ const en: typeof no = {
   }
 };
 
-export const messages: Record<Language, typeof no> = { no, en };
+export const messages: Record<Language, MessageTree> = { no, en };
 
-export type MessageTree = typeof no;
+export type { MessageTree };

@@ -41,7 +41,7 @@ export type ChartToolbarProps = {
 export type MainLineChartProps = {
   data: MarketDataPoint[];
   activeTickers: string[];
-  onTooltipContent: (props: { active?: boolean; payload?: RechartsTooltipPayloadItem[]; label?: string | number; rangeSelection?: ChartRangeSelection | null; anchorIndex?: number | null }) => React.ReactNode;
+  onTooltipContent: (props: { active?: boolean; payload?: RechartsTooltipPayloadItem[]; label?: string | number; rangeSelection?: ChartRangeSelection | null; anchorIndex?: number | null; showLiquidityFlow?: boolean }) => React.ReactNode;
   showSMA?: boolean;
   smaWindow?: number;
   showLiquidityFlow?: boolean;
@@ -66,6 +66,13 @@ export type AIInsightPanelProps = {
 
 export type MarketSummaryTableProps = {
   summary: SummaryStats[];
+  title?: string;
+  showCheckboxes?: boolean;
+  activeCheckboxes?: string[];
+  onCheckboxToggle?: (symbol: string) => void;
+  onRowClick?: (symbol: string, type: 'sector' | 'etf' | 'stock') => void;
+  onExitDrilldown?: () => void;
+  holdingsWeights?: Record<string, number>;
 };
 
 export type RelativAvkastningControlsProps = {

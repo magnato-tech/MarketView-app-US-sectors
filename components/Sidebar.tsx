@@ -6,15 +6,11 @@ import { useLanguage } from '../contexts/LanguageContext';
 import type { Language } from '../i18n/types';
 
 interface SidebarProps {
-  selectedTickers: string[];
-  onTickerToggle: (symbol: string) => void;
+  // Props fjernet da navigasjon nå styres via Context
 }
 
-const Sidebar: React.FC<SidebarProps> = ({
-  selectedTickers,
-  onTickerToggle,
-}) => {
-  const { isDarkMode, toggleDarkMode, drilldownSector, setDrilldownSector } = useDashboard();
+const Sidebar: React.FC<SidebarProps> = () => {
+  const { isDarkMode, toggleDarkMode, setDetailContext, drilldownSector, activeTickers, handleTickerToggle } = useDashboard();
   const { language, setLanguage, t } = useLanguage();
   const indices = TICKERS.filter(ticker => ticker.category === 'Index');
   const sectors = TICKERS.filter(ticker => ticker.category === 'Sector');
@@ -43,62 +39,59 @@ const Sidebar: React.FC<SidebarProps> = ({
     );
   };
 
-  const renderTickerRow = (ticker: any, isMainSector = false) => {
-    const isActiveInDrilldown = drilldownSector === ticker.symbol;
-    const hasChildren = TICKERS.some(child => child.parentSymbol === ticker.symbol);
-
+  const renderTickerRow = (ticker: any) => {
+    const isDrilldownActive = drilldownSector === ticker.symbol;
+    const isSelected = activeTickers.includes(ticker.symbol);
+    
     return (
-      <div key={ticker.symbol} className="flex items-center group">
-        <label className={`flex-1 flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-all border border-transparent ${
-          isDarkMode ? 'hover:bg-slate-800/50 hover:border-slate-700/50' : 'hover:bg-slate-200/50 hover:border-slate-300/50'
-        }`}>
-          <div className="relative flex items-center">
-            <input
-              type="checkbox"
-              checked={selectedTickers.includes(ticker.symbol)}
-              onChange={() => onTickerToggle(ticker.symbol)}
-              className={`w-4 h-4 rounded appearance-none border transition-all ${
-                isDarkMode 
-                  ? 'border-slate-700 bg-slate-800 checked:bg-blue-600' 
-                  : 'border-slate-300 bg-white checked:bg-blue-600'
-              } text-blue-600 focus:ring-blue-500 checked:border-transparent`}
-            />
-            {selectedTickers.includes(ticker.symbol) && (
-              <svg className="w-3 h-3 absolute left-0.5 text-white pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+      <div key={ticker.symbol} className="flex items-center group gap-1">
+        {/* Checkbox for comparison */}
+        <div className="pl-1">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => handleTickerToggle(ticker.symbol)}
+            className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer"
+          />
+        </div>
+
+        <button
+          onClick={() => setDetailContext({ symbol: ticker.symbol, type: ticker.category === 'Sector' ? 'sector' : 'etf' })}
+          className={`flex-1 flex items-center gap-3 p-2 rounded-lg transition-all border border-transparent text-left ${
+            isDarkMode ? 'hover:bg-slate-800/50 hover:border-slate-700/50' : 'hover:bg-slate-200/50 hover:border-slate-300/50'
+          } ${isDrilldownActive ? (isDarkMode ? 'bg-blue-600/10 border-blue-500/30' : 'bg-blue-50 border-blue-200') : ''}`}
+        >
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black border transition-colors shrink-0 ${
+            isDrilldownActive
+              ? 'bg-blue-600 text-white border-blue-500'
+              : isDarkMode 
+                ? 'bg-slate-800 text-slate-400 border-slate-700 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-500' 
+                : 'bg-white text-slate-400 border-slate-200 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-500'
+          }`}>
+            {ticker.symbol.substring(0, 2)}
+          </div>
+          <div className="flex-1 flex items-center justify-between min-w-0">
+            <div className="flex flex-col min-w-0">
+              <span className={`text-sm truncate transition-colors ${
+                isDrilldownActive
+                  ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-600 font-bold')
+                  : isDarkMode ? 'text-slate-400 group-hover:text-slate-200' : 'text-slate-600 group-hover:text-slate-900'
+              }`}>
+                {ticker.name}
+              </span>
+              <span className={`text-[10px] font-mono ${isDrilldownActive ? 'text-blue-500/60' : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}`}>
+                {ticker.symbol}
+              </span>
+            </div>
+            {ticker.category === 'Sector' && (
+              <div className={`transition-transform duration-300 ${isDrilldownActive ? 'rotate-90 opacity-100' : 'rotate-0 opacity-0 group-hover:opacity-100'}`}>
+                <svg className={`w-4 h-4 ${isDrilldownActive ? 'text-blue-500' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
             )}
           </div>
-          <div className="flex flex-col">
-            <span className={`text-sm transition-colors ${
-              selectedTickers.includes(ticker.symbol) 
-                ? (isDarkMode ? 'text-white font-bold' : 'text-slate-900 font-bold') 
-                : (isDarkMode ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-500 group-hover:text-slate-700')
-            }`}>
-              {ticker.name}
-            </span>
-            <span className={`text-[10px] font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{ticker.symbol}</span>
-          </div>
-        </label>
-        
-        {isMainSector && hasChildren && (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              setDrilldownSector(isActiveInDrilldown ? null : ticker.symbol);
-            }}
-            className={`p-2 ml-1 rounded-md transition-all ${
-              isActiveInDrilldown 
-                ? 'bg-blue-600/20 text-blue-400 rotate-90' 
-                : 'text-slate-600 hover:bg-slate-800 hover:text-slate-400'
-            }`}
-            title={isActiveInDrilldown ? t('sidebar.drilldown.close') : t('sidebar.drilldown.open')}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        )}
+        </button>
       </div>
     );
   };
@@ -159,13 +152,13 @@ const Sidebar: React.FC<SidebarProps> = ({
           isDarkMode ? 'text-slate-500 border-slate-800' : 'text-slate-400 border-slate-200'
         }`}>{t('sidebar.sections.sectorCategories')}</h3>
         <div className="space-y-1">
-          {mainSectors.map(ticker => renderTickerRow(ticker, true))}
+          {mainSectors.map(ticker => renderTickerRow(ticker))}
         </div>
 
         <div className="mt-5">
           <h4 className={`text-[10px] uppercase tracking-wider mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{t('sidebar.sections.inputs')}</h4>
           <div className="space-y-1">
-            {inputSectors.map(ticker => renderTickerRow(ticker, true))}
+            {inputSectors.map(ticker => renderTickerRow(ticker))}
           </div>
         </div>
       </section>

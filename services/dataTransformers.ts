@@ -11,7 +11,20 @@ export interface YahooChartResponse {
   chart?: {
     error?: { description?: string };
     result?: Array<{
-      meta?: { symbol?: string; shortName?: string; longName?: string };
+      meta?: { 
+        symbol?: string; 
+        shortName?: string; 
+        longName?: string;
+        regularMarketPrice?: number;
+        chartPreviousClose?: number;
+        regularMarketVolume?: number;
+        marketCap?: number;
+        trailingPE?: number;
+        priceToSales?: number;
+        dividendYield?: number;
+        fiftyTwoWeekHigh?: number;
+        fiftyTwoWeekLow?: number;
+      };
       timestamp?: number[];
       indicators?: { 
         quote?: Array<{ 
@@ -113,7 +126,7 @@ export function mergeSeriesToChartData(
 export function buildSummary(
   symbols: string[],
   bySymbol: Record<string, PriceSeries>,
-  metaBySymbol: Record<string, { shortName?: string; longName?: string }>
+  metaBySymbol: Record<string, YahooChartResponse['chart']['result'][0]['meta']>
 ): SummaryStats[] {
   const summary: SummaryStats[] = [];
   for (const sym of symbols) {
@@ -131,6 +144,13 @@ export function buildSummary(
       lastPrice: parseFloat(last.toFixed(2)),
       percentChange: parseFloat(pct.toFixed(2)),
       color: ticker?.color ?? '#64748b',
+      marketCap: meta?.marketCap,
+      peRatio: meta?.trailingPE,
+      psRatio: meta?.priceToSales,
+      dividendYield: meta?.dividendYield,
+      high52w: meta?.fiftyTwoWeekHigh,
+      low52w: meta?.fiftyTwoWeekLow,
+      volume: meta?.regularMarketVolume,
     });
   }
   return summary;

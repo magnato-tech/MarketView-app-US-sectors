@@ -12,13 +12,13 @@ export function SelectedInstrumentBadges({
 }: SelectedInstrumentBadgesProps) {
   const { t } = useLanguage();
   return (
-    <div className="flex items-center gap-2 min-w-0">
+    <div className="flex items-center gap-2 min-w-0 shrink-0">
       <div className={containerClassName}>
         {summary.slice(0, maxItems).map((s) => (
           <div key={s.symbol} className={bubbleClassName} style={{ backgroundColor: s.color }} />
         ))}
       </div>
-      <span className={labelClassName}>{t('badges.selectedInstruments')}</span>
+      <span className={`${labelClassName} whitespace-nowrap`}>{t('badges.selectedInstruments')}</span>
     </div>
   );
 }

@@ -42,9 +42,9 @@ export const Leaderboard: React.FC = () => {
   const bottom5 = [...sorted].reverse().slice(0, 5);
 
   const MetricBadge = ({ label, value, colorClass }: { label: string, value: string | number, colorClass?: string }) => (
-    <div className="flex flex-col items-center px-2 py-1.5 rounded bg-slate-950/40 border border-white/10 shadow-inner">
-      <span className="text-[8px] uppercase text-slate-400 font-black tracking-wider leading-tight mb-0.5">{label}</span>
-      <span className={`text-[11px] font-mono font-black leading-tight ${colorClass || 'text-white'}`}>{value}</span>
+    <div className="flex flex-col items-center px-1 py-1.5 rounded bg-slate-950/40 border border-white/10 shadow-inner min-w-0">
+      <span className="text-[7px] uppercase text-slate-400 font-black tracking-tighter leading-tight mb-0.5 text-center truncate w-full px-0.5">{label}</span>
+      <span className={`text-[11px] font-mono font-black leading-tight ${colorClass || 'text-white'} whitespace-nowrap`}>{value}</span>
     </div>
   );
 
@@ -71,7 +71,7 @@ export const Leaderboard: React.FC = () => {
           </div>
         </div>
         
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <MetricBadge 
             label={t('leaderboard.metrics.relStrength')}
             value={`${(sorted[0]?.metrics?.relativeStrength ?? 0) > 0 ? '+' : ''}${sorted[0]?.metrics?.relativeStrength ?? 0}%`} 

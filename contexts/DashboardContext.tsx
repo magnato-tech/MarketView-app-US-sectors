@@ -2,11 +2,19 @@ import React, { createContext, useContext, ReactNode, useState } from 'react';
 import { Period, Interval, MarketDataPoint, SummaryStats } from '../types';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import { TICKERS } from '../constants';
+import { getEtfHoldings } from '../services/etfService';
 
 import { RangeSummaryRow } from '../services/analysisService';
 import { AISignal } from './TradingContext';
 
-export type DashboardTab = 'dashboard' | 'analysis' | 'portfolio';
+export type DashboardTab = 'dashboard' | 'portfolio';
+
+export type DetailType = 'sector' | 'etf' | 'stock';
+
+export interface DetailContext {
+  type: DetailType;
+  symbol: string;
+}
 
 interface DashboardContextType {
   selectedTickers: string[];
@@ -44,9 +52,16 @@ interface DashboardContextType {
     smaWindow: number;
     showLiquidityFlow: boolean;
   }>>;
-  // ETF Detaljer
-  selectedETFSymbol: string | null;
-  setSelectedETFSymbol: (symbol: string | null) => void;
+  // Detalj-kontekst for sidepanelet (erstatter selectedETFSymbol)
+  detailContext: DetailContext | null;
+  setDetailContext: (context: DetailContext | null) => void;
+  // Drilldown fra ETF til dens holdings (barn/aksjer). Symmetrisk med
+  // sektor-drilldown: moder-ETF er alltid synlig, søsken-aksjer kan toggles av.
+  drilldownETF: string | null;
+  activeEtfStockTickers: string[];
+  openEtfDrilldown: (etfSymbol: string) => void;
+  closeEtfDrilldown: () => void;
+  toggleEtfStockTicker: (symbol: string) => void;
   // Prisoppslag
   lastPrices: Record<string, number>;
 }
@@ -135,7 +150,52 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
   };
 
   const [activeDrilldownTickers, setActiveDrilldownTickers] = useState<string[]>([]);
-  const [selectedETFSymbol, setSelectedETFSymbol] = useState<string | null>(null);
+  const [detailContext, setDetailContext] = useState<DetailContext | null>(null);
+
+  // ETF -> aksjer drilldown: speiler sektor-drilldown strukturelt.
+  // - drilldownETF = moder-ETF (alltid synlig i graf)
+  // - activeEtfStockTickers = hvilke søsken-aksjer som er krysset av
+  // - preEtfDrilldownTickers = tickers å gjenopprette når modus avsluttes
+  const [drilldownETF, setDrilldownETFState] = useState<string | null>(null);
+  const [activeEtfStockTickers, setActiveEtfStockTickers] = useState<string[]>([]);
+  const [preEtfDrilldownTickers, setPreEtfDrilldownTickers] = useState<string[]>([]);
+
+  const openEtfDrilldown = (etfSymbol: string) => {
+    if (drilldownETF === etfSymbol) return;
+
+    const holdings = getEtfHoldings(etfSymbol);
+
+    if (!drilldownETF) {
+      setPreEtfDrilldownTickers(state.selectedTickers);
+    }
+
+    if (drilldownSector) {
+      setDrilldownSectorState(null);
+      setActiveDrilldownTickers([]);
+    }
+
+    setDrilldownETFState(etfSymbol);
+    setSelectedTickers([etfSymbol, ...holdings]);
+    setActiveEtfStockTickers([]);
+  };
+
+  const closeEtfDrilldown = () => {
+    if (!drilldownETF) return;
+    setDrilldownETFState(null);
+    setActiveEtfStockTickers([]);
+    if (preEtfDrilldownTickers.length > 0) {
+      setSelectedTickers(preEtfDrilldownTickers);
+      setPreEtfDrilldownTickers([]);
+    }
+  };
+
+  const toggleEtfStockTicker = (symbol: string) => {
+    setActiveEtfStockTickers(prev =>
+      prev.includes(symbol)
+        ? prev.filter(s => s !== symbol)
+        : [...prev, symbol]
+    );
+  };
 
   const toggleDrilldownTicker = (symbol: string) => {
     setActiveDrilldownTickers(prev => 
@@ -173,8 +233,13 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     refreshData,
     analysisSettings,
     setAnalysisSettings,
-    selectedETFSymbol,
-    setSelectedETFSymbol,
+    detailContext,
+    setDetailContext,
+    drilldownETF,
+    activeEtfStockTickers,
+    openEtfDrilldown,
+    closeEtfDrilldown,
+    toggleEtfStockTicker,
     lastPrices,
   };
 

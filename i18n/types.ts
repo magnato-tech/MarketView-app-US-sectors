@@ -23,3 +23,11 @@ export type Paths<T, P extends string = ''> = T extends string
       [K in keyof T & string]: Paths<T[K], P extends '' ? K : `${P}.${K}`>;
     }[keyof T & string]
   : never;
+
+/**
+ * Rekursiv type for oversettelsestreet.
+ * Tillater vilkårlige strenger for å unngå literal-mismatch mellom språk.
+ */
+export type MessageTree = {
+  [key: string]: string | MessageTree;
+};

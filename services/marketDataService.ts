@@ -30,7 +30,7 @@ const intervalMap: Record<Interval, string> = {
 
 interface CacheEntry {
   series: PriceSeries;
-  meta: { shortName?: string; longName?: string };
+  meta: YahooChartResponse['chart']['result'][0]['meta'];
   timestamp: number;
 }
 
@@ -72,7 +72,7 @@ export const fetchMarketData = async (
     const range = periodMap[period];
     const intv = intervalMap[interval];
     const bySymbol: Record<string, PriceSeries> = {};
-    const metaBySymbol: Record<string, { shortName?: string; longName?: string }> = {};
+    const metaBySymbol: Record<string, YahooChartResponse['chart']['result'][0]['meta']> = {};
 
     const fetchSingleSymbol = async (symbol: string, attempt = 0): Promise<void> => {
       const cacheKey = getCacheKey(symbol, range, intv);

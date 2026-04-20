@@ -2,10 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { 
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceArea, Cell 
 } from 'recharts';
-import { TICKERS } from '../../constants';
 import type { MainLineChartProps, ChartRangeSelection } from './types';
 import { calculateSMA } from '../../services/analysisService';
-import { useDashboard, DashboardTab } from '../../contexts/DashboardContext';
+import { useDashboard } from '../../contexts/DashboardContext';
+import { resolveTicker } from '../../utils/tickerResolver';
 
 export const MainLineChart: React.FC<MainLineChartProps> = ({ 
   data, 
@@ -15,18 +15,38 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
   smaWindow = 20,
   showLiquidityFlow = false
 }) => {
-  const { isDarkMode, drilldownSector, activeDrilldownTickers, activeTab } = useDashboard();
+  const {
+    isDarkMode,
+    drilldownSector,
+    activeDrilldownTickers,
+    drilldownETF,
+    activeEtfStockTickers,
+  } = useDashboard();
   const [rangeSelection, setRangeSelection] = useState<ChartRangeSelection | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
 
-  // Bestem hvilke tickers som faktisk skal vises
+  // Prioriteringsrekkefølge:
+  //   1. ETF-drilldown  → [moder-ETF, ...avkrysede aksjer]
+  //   2. Sektor-drilldown → activeDrilldownTickers
+  //   3. Standard         → activeTickers
+  // Slektsregelen: kun foreldre + søsken, aldri onkler/søskenbarn.
   const visibleTickers = useMemo(() => {
-    if (drilldownSector && activeDrilldownTickers.length > 0) {
-      return activeDrilldownTickers;
+    if (drilldownETF) {
+      return [drilldownETF, ...activeEtfStockTickers];
+    }
+    if (drilldownSector) {
+      // Hvis vi er i sektor-drilldown, vis sektoren + de valgte ETF-ene (activeDrilldownTickers)
+      return [drilldownSector, ...activeDrilldownTickers.filter(t => t !== drilldownSector)];
     }
     return activeTickers;
-  }, [activeTickers, drilldownSector, activeDrilldownTickers]);
+  }, [
+    activeTickers,
+    drilldownSector,
+    activeDrilldownTickers,
+    drilldownETF,
+    activeEtfStockTickers,
+  ]);
 
   const gridColor = isDarkMode ? "#1e293b" : "#e2e8f0";
   const axisColor = isDarkMode ? "#475569" : "#64748b";
@@ -170,7 +190,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
 
   // Finn fargen til den primære sektoren for volum-histogrammet
   const primaryTicker = visibleTickers[0];
-  const primaryColor = TICKERS.find(t => t.symbol === primaryTicker)?.color || '#3b82f6';
+  const primaryColor = primaryTicker ? resolveTicker(primaryTicker).color : '#3b82f6';
 
   return (
     <div className="relative w-full h-full group">
@@ -293,13 +313,12 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         </Bar>
 
         {visibleTickers.map(sym => {
-        const ticker = TICKERS.find(t => t.symbol === sym);
-        if (!ticker) return null;
-        
+        const ticker = resolveTicker(sym);
+
         const dataKey = sym === '^VIX' ? '^VIX_SCALED' : sym;
-        const displayName = sym === '^VIX' 
-          ? `${ticker.name} (auto-skalert ${vixScaleFactor.toFixed(2)}x)` 
-          : (activeTab === 'analysis' ? `${ticker.name} (Pris %)` : ticker.name);
+        const displayName = sym === '^VIX'
+          ? `${ticker.name} (auto-skalert ${vixScaleFactor.toFixed(2)}x)`
+          : ticker.name;
 
         const lines = [
           <Line

@@ -4,7 +4,7 @@ import type { Interval, Period } from '../../types';
 import type { ChartToolbarProps } from './types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useDashboard } from '../../contexts/DashboardContext';
-import { LayoutDashboard, BarChart2, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Briefcase } from 'lucide-react';
 
 export function PeriodIntervalToolbar({
   period,
@@ -17,7 +17,6 @@ export function PeriodIntervalToolbar({
 
   const tabs = [
     { id: 'dashboard', label: t('dashboard.tabs.dashboard'), icon: LayoutDashboard },
-    { id: 'analysis', label: t('dashboard.tabs.analysis'), icon: BarChart2 },
     { id: 'portfolio', label: t('dashboard.tabs.portfolio'), icon: Briefcase },
   ] as const;
 
