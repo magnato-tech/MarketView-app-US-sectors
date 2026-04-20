@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import Sidebar from '../../components/Sidebar';
 import { DashboardProvider } from '../../contexts/DashboardContext';
 import { TICKERS } from '../../constants';
+import { renderWithProviders } from './helpers';
 
 // Mocking useDashboardLogic to avoid actual API calls
 vi.mock('../../hooks/useDashboardLogic', () => ({
@@ -48,10 +49,9 @@ describe('Drilldown Functionality', () => {
   });
 
   it('renders drilldown arrows for sectors with children', () => {
-    const { container } = render(
-      <DashboardProvider initialTickers={['XLK']}>
-        <Sidebar selectedTickers={['XLK']} onTickerToggle={vi.fn()} />
-      </DashboardProvider>
+    const { container } = renderWithProviders(
+      <Sidebar selectedTickers={['XLK']} onTickerToggle={vi.fn()} />,
+      { initialTickers: ['XLK'] }
     );
 
     // Debug: skriv ut HTML hvis det feiler
@@ -63,10 +63,9 @@ describe('Drilldown Functionality', () => {
   });
 
   it('verifies that all major sectors have drilldown capability', () => {
-    const { container } = render(
-      <DashboardProvider initialTickers={[]}>
-        <Sidebar selectedTickers={[]} onTickerToggle={vi.fn()} />
-      </DashboardProvider>
+    const { container } = renderWithProviders(
+      <Sidebar selectedTickers={[]} onTickerToggle={vi.fn()} />,
+      { initialTickers: [] }
     );
 
     const majorSectors = [
@@ -88,10 +87,9 @@ describe('Drilldown Functionality', () => {
   });
 
   it('toggles drilldown state when clicking the arrow', () => {
-    render(
-      <DashboardProvider initialTickers={['XLK']}>
-        <Sidebar selectedTickers={['XLK']} onTickerToggle={vi.fn()} />
-      </DashboardProvider>
+    renderWithProviders(
+      <Sidebar selectedTickers={['XLK']} onTickerToggle={vi.fn()} />,
+      { initialTickers: ['XLK'] }
     );
 
     const techText = screen.getByText(/^Teknologi$/i);

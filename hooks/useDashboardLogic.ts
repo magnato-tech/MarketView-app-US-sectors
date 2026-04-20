@@ -3,14 +3,16 @@ import { Period, Interval } from '../types';
 import { calculateRangeSummary } from '../services/analysisService';
 import { useMarketData } from './useMarketData';
 import { useAIInsights } from './useAIInsights';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export const useDashboardLogic = (initialTickers: string[]) => {
   const [selectedTickers, setSelectedTickers] = useState<string[]>(initialTickers);
   const [period, setPeriod] = useState<Period>('6mo');
   const [interval, setInterval] = useState<Interval>('1d');
+  const { language } = useLanguage();
 
   const { data, summary, loading, refreshData } = useMarketData(selectedTickers, period, interval);
-  const { aiInsight } = useAIInsights(summary, period, data);
+  const { aiInsight, aiSignals } = useAIInsights(summary, period, data, language);
 
   const handleTickerToggle = (symbol: string) => {
     setSelectedTickers(prev => {
@@ -45,7 +47,8 @@ export const useDashboardLogic = (initialTickers: string[]) => {
       data,
       summary,
       loading,
-      aiInsight
+      aiInsight,
+      aiSignals
     },
     rangeSummary,
     activeTickers,

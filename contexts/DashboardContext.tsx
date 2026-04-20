@@ -4,8 +4,9 @@ import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import { TICKERS } from '../constants';
 
 import { RangeSummaryRow } from '../services/analysisService';
+import { AISignal } from './TradingContext';
 
-export type DashboardTab = 'dashboard' | 'analysis';
+export type DashboardTab = 'dashboard' | 'analysis' | 'portfolio';
 
 interface DashboardContextType {
   selectedTickers: string[];
@@ -15,6 +16,7 @@ interface DashboardContextType {
   summary: SummaryStats[];
   loading: boolean;
   aiInsight: string;
+  aiSignals: AISignal[];
   rangeSummary: RangeSummaryRow[];
   activeTickers: string[];
   activeTab: DashboardTab;
@@ -42,6 +44,11 @@ interface DashboardContextType {
     smaWindow: number;
     showLiquidityFlow: boolean;
   }>>;
+  // ETF Detaljer
+  selectedETFSymbol: string | null;
+  setSelectedETFSymbol: (symbol: string | null) => void;
+  // Prisoppslag
+  lastPrices: Record<string, number>;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -128,6 +135,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
   };
 
   const [activeDrilldownTickers, setActiveDrilldownTickers] = useState<string[]>([]);
+  const [selectedETFSymbol, setSelectedETFSymbol] = useState<string | null>(null);
 
   const toggleDrilldownTicker = (symbol: string) => {
     setActiveDrilldownTickers(prev => 
@@ -136,6 +144,14 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
         : [...prev, symbol]
     );
   };
+
+  const lastPrices = React.useMemo(() => {
+    const prices: Record<string, number> = {};
+    state.summary.forEach(s => {
+      prices[s.symbol] = s.lastPrice;
+    });
+    return prices;
+  }, [state.summary]);
 
   const value: DashboardContextType = {
     ...state,
@@ -157,6 +173,9 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     refreshData,
     analysisSettings,
     setAnalysisSettings,
+    selectedETFSymbol,
+    setSelectedETFSymbol,
+    lastPrices,
   };
 
   return (

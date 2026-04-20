@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ResponsiveContainer } from 'recharts';
 import { useDashboard } from '../contexts/DashboardContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { MainLineChart } from './dashboard/MainLineChart';
 import { ChartTooltip } from './dashboard/ChartTooltip';
 import { AIInsightPanel } from './dashboard/AIInsightPanel';
-import { OpportunityMatrix } from './dashboard/OpportunityMatrix';
 import { InfoIcon } from './ui/InfoIcon';
 import { Card } from './ui/Card';
 import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { formatPercent } from '../utils/formatters';
 
 export const AnalysisBoard: React.FC = () => {
-  const { data, summary, aiInsight, rangeSummary, period, activeTickers, analysisSettings, setAnalysisSettings } = useDashboard();
+  const { data, summary, aiInsight, period, activeTickers, analysisSettings, setAnalysisSettings } = useDashboard();
+  const { t } = useLanguage();
   const { showSMA, smaWindow, showLiquidityFlow } = analysisSettings;
 
   const handleSmaClick = (w: number) => {
@@ -48,8 +49,8 @@ export const AnalysisBoard: React.FC = () => {
     <div className="space-y-6">
       {/* Technical Analysis Chart */}
       <Card 
-        title="Teknisk Trendanalyse" 
-        subtitle="Relativ avkastning med Simple Moving Average (SMA)"
+        title={t('analysis.technicalTitle')}
+        subtitle={t('analysis.technicalSubtitle')}
         headerAction={
           <div className="flex items-center gap-3 bg-slate-950 dark:bg-slate-950 light:bg-slate-100 p-1 rounded-lg border border-slate-800 dark:border-slate-800 light:border-slate-200">
             <button
@@ -59,14 +60,14 @@ export const AnalysisBoard: React.FC = () => {
                   ? 'bg-indigo-600 text-white' 
                   : 'text-slate-400 dark:text-slate-400 light:text-slate-500 hover:text-slate-200 dark:hover:text-slate-200 light:hover:text-slate-900'
               }`}
-              title="Vis hver sektors andel av total handelsverdi"
+              title={t('analysis.capitalFlowTooltip')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="m17 17-5 5-5-5"/><path d="m7 7 5-5 5 5"/></svg>
-              Kapitalstrøm
-              <InfoIcon title="Viser momentum i handelsvolum (dollarverdi) relativt til starten av perioden" />
+              {t('analysis.capitalFlow')}
+              <InfoIcon title={t('analysis.capitalFlowInfo')} />
             </button>
             <div className="w-px h-4 bg-slate-800 dark:bg-slate-800 light:bg-slate-200 mx-1"></div>
-            <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase px-2">SMA:</span>
+            <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase px-2">{t('analysis.smaLabel')}</span>
             {[10, 20, 50, 150, 200].map(w => (
               <button
                 key={w}
@@ -97,15 +98,12 @@ export const AnalysisBoard: React.FC = () => {
         </div>
       </Card>
 
-      {/* Opportunity Matrix */}
-      <OpportunityMatrix summary={rangeSummary} />
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* AI Deep Dive */}
         <AIInsightPanel aiInsight={aiInsight} period={period} />
 
         {/* Volatility / Stats Panel */}
-        <Card title="Sektor-statistikk">
+        <Card title={t('analysis.sectorStatsTitle')}>
           <div className="space-y-4">
             {summary.map(s => (
               <div key={s.symbol} className="flex items-center justify-between p-3 bg-slate-950/50 dark:bg-slate-950/50 light:bg-slate-50 rounded-xl border border-slate-800/50 dark:border-slate-800/50 light:border-slate-100">
@@ -115,7 +113,7 @@ export const AnalysisBoard: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <div className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase font-black">Avkastning</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase font-black">{t('analysis.return')}</div>
                     <div className={`text-sm font-bold ${s.percentChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {formatPercent(s.percentChange)}
                     </div>

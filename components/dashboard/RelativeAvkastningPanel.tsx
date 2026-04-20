@@ -3,6 +3,7 @@ import React from 'react';
 import { SummaryStats } from '../../types';
 import { SelectedInstrumentBadges } from './SelectedInstrumentBadges';
 import { useDashboard, DashboardTab } from '../../contexts/DashboardContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export interface RelativeAvkastningPanelProps {
   title: string;
@@ -25,6 +26,7 @@ export const RelativeAvkastningPanel: React.FC<RelativeAvkastningPanelProps> = (
   maxBadges = 3
 }) => {
   const { activeTab, setActiveTab } = useDashboard();
+  const { t } = useLanguage();
 
   const TabButton = ({ tab, label }: { tab: DashboardTab; label: string }) => (
     <button
@@ -50,8 +52,8 @@ export const RelativeAvkastningPanel: React.FC<RelativeAvkastningPanelProps> = (
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center bg-slate-950/50 dark:bg-slate-950/50 light:bg-slate-100 p-1 rounded-xl border border-slate-800/50 dark:border-slate-800/50 light:border-slate-200 gap-1">
-              <TabButton tab="dashboard" label="Dashboard" />
-              <TabButton tab="analysis" label="Analyse" />
+              <TabButton tab="dashboard" label={t('dashboard.tabs.dashboard')} />
+              <TabButton tab="analysis" label={t('dashboard.tabs.analysis')} />
             </div>
             <SelectedInstrumentBadges
               summary={summary}
@@ -65,7 +67,7 @@ export const RelativeAvkastningPanel: React.FC<RelativeAvkastningPanelProps> = (
               onClick={onToggleFullscreen}
               className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 dark:bg-slate-800 light:bg-slate-200 border border-slate-600 dark:border-slate-600 light:border-slate-300 text-slate-200 dark:text-slate-200 light:text-slate-700 hover:bg-slate-700 dark:hover:bg-slate-700 light:hover:bg-slate-300 transition-colors"
             >
-              Avslutt fullskjerm
+              {t('panel.exitFullscreen')}
             </button>
           </div>
         </div>
@@ -85,8 +87,8 @@ export const RelativeAvkastningPanel: React.FC<RelativeAvkastningPanelProps> = (
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center bg-slate-950/50 dark:bg-slate-950/50 light:bg-slate-100 p-1 rounded-xl border border-slate-800/50 dark:border-slate-800/50 light:border-slate-200 gap-1">
-            <TabButton tab="dashboard" label="Dashboard" />
-            <TabButton tab="analysis" label="Analyse" />
+            <TabButton tab="dashboard" label={t('dashboard.tabs.dashboard')} />
+            <TabButton tab="analysis" label={t('dashboard.tabs.analysis')} />
           </div>
           <SelectedInstrumentBadges
             summary={summary}
@@ -98,7 +100,7 @@ export const RelativeAvkastningPanel: React.FC<RelativeAvkastningPanelProps> = (
             onClick={onToggleFullscreen}
             className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 dark:bg-slate-800 light:bg-slate-200 border border-slate-600 dark:border-slate-600 light:border-slate-300 text-slate-200 dark:text-slate-200 light:text-slate-700 hover:bg-slate-700 dark:hover:bg-slate-700 light:hover:bg-slate-300 transition-colors whitespace-nowrap"
           >
-            Fullskjerm graf
+            {t('panel.enterFullscreen')}
           </button>
         </div>
       </div>

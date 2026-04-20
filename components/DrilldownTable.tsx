@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useDashboard } from '../contexts/DashboardContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { TICKERS } from '../constants';
 import { getStrongTrendColorClass } from '../utils/formatters';
 
@@ -11,10 +12,11 @@ export const DrilldownTable: React.FC = () => {
     selectedTickers, 
     activeDrilldownTickers,
     toggleDrilldownTicker,
-    handleTickerToggle, 
-    isDarkMode,
-    loading 
+    setSelectedETFSymbol,
+    loading,
+    isDarkMode 
   } = useDashboard();
+  const { t } = useLanguage();
 
   if (!drilldownSector) return null;
 
@@ -30,6 +32,12 @@ export const DrilldownTable: React.FC = () => {
 
   const isLoadingDrilldown = loading && drilldownSummary.length < allDrilldownSymbols.length;
 
+  const handleSymbolClick = (e: React.MouseEvent, symbol: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedETFSymbol(symbol);
+  };
+
   return (
     <div className={`rounded-2xl overflow-hidden shadow-xl border transition-all duration-300 ${
       isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
@@ -41,10 +49,10 @@ export const DrilldownTable: React.FC = () => {
           <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
           <div>
             <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              Sektordetaljer: {parentTicker?.name || drilldownSector}
+              {t('drilldownTable.titlePrefix')}: {parentTicker?.name || drilldownSector}
             </h3>
             <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-              {isLoadingDrilldown ? 'Laster inn ETF-data...' : 'Velg spesifikke instrumenter for å sammenligne med sektoren'}
+              {isLoadingDrilldown ? t('drilldownTable.loadingEtfs') : t('drilldownTable.selectHint')}
             </p>
           </div>
         </div>
@@ -54,7 +62,7 @@ export const DrilldownTable: React.FC = () => {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            Henter data...
+            {t('drilldownTable.fetching')}
           </div>
         )}
       </div>
@@ -66,11 +74,11 @@ export const DrilldownTable: React.FC = () => {
           }`}>
             <tr>
               <th className="px-6 py-4 w-10"></th>
-              <th className="px-6 py-4">Instrument</th>
-              <th className="px-6 py-4">Ticker</th>
-              <th className="px-6 py-4">Siste Kurs</th>
-              <th className="px-6 py-4">Endring %</th>
-              <th className="px-6 py-4">Styrke</th>
+              <th className="px-6 py-4">{t('marketSummaryFull.instrument')}</th>
+              <th className="px-6 py-4">{t('marketSummaryFull.ticker')}</th>
+              <th className="px-6 py-4">{t('marketSummaryFull.lastPrice')}</th>
+              <th className="px-6 py-4">{t('marketSummaryFull.changePct')}</th>
+              <th className="px-6 py-4">{t('marketSummaryFull.strength')}</th>
             </tr>
           </thead>
           <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
@@ -102,14 +110,22 @@ export const DrilldownTable: React.FC = () => {
                       {s.name}
                       {isParent && (
                         <span className="text-[9px] bg-blue-600/20 text-blue-500 px-1.5 py-0.5 rounded font-black uppercase ml-2">
-                          Sektor
+                          {t('drilldownTable.sectorBadge')}
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className={`px-6 py-4 font-mono text-xs ${
-                    isDarkMode ? 'text-slate-400 group-hover:text-slate-200' : 'text-slate-500 group-hover:text-slate-900'
-                  }`}>{s.symbol}</td>
+                  <td className={`px-6 py-4 font-mono text-xs`}>
+                    <button
+                      onClick={(e) => handleSymbolClick(e, s.symbol)}
+                      className={`font-black hover:underline underline-offset-4 transition-colors ${
+                        isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
+                      }`}
+                      title={t('leaderboard.etfDetails.title')}
+                    >
+                      {s.symbol}
+                    </button>
+                  </td>
                   <td className={`px-6 py-4 font-mono font-bold ${
                     isDarkMode ? 'text-slate-300' : 'text-slate-600'
                   }`}>${s.lastPrice.toLocaleString()}</td>

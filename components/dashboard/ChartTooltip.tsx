@@ -2,6 +2,7 @@ import React from 'react';
 import type { MarketDataPoint } from '../../types';
 import type { RechartsTooltipPayloadItem, ChartRangeSelection } from './types';
 import { formatPercent, getTrendColorClass } from '../../utils/formatters';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export type ChartTooltipProps = {
   active?: boolean;
@@ -32,6 +33,7 @@ export function ChartTooltip({
   rangeSelection,
   showLiquidityFlow
 }: ChartTooltipProps) {
+  const { t } = useLanguage();
   if (!active || !payload?.length) return null;
 
   const isRangeMode = rangeSelection && rangeSelection.rangeStart !== rangeSelection.rangeEnd;
@@ -63,21 +65,21 @@ export function ChartTooltip({
         <p className="font-bold text-slate-300 dark:text-slate-300 light:text-slate-900">{label}</p>
         {isRangeMode && (
           <span className="text-[9px] bg-blue-600/20 text-blue-400 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">
-            Periodevalg
+            {t('chartTooltip.rangeSelection')}
           </span>
         )}
       </div>
 
       {isRangeMode ? (
         <p className="text-[10px] text-blue-400/80 mb-2 font-medium">
-          Utvikling fra {data[startIdx]?.timestamp}
+          {t('chartTooltip.rangeFrom', { date: String(data[startIdx]?.timestamp ?? '') })}
         </p>
       ) : baseRow ? (
         <p className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 mb-2">
-          Tall vs. start av markering ({baseRow.timestamp})
+          {t('chartTooltip.vsAnchor', { date: String(baseRow.timestamp) })}
         </p>
       ) : (
-        <p className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 mb-2">Tall vs. start av Yahoo-periode</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 mb-2">{t('chartTooltip.vsPeriodStart')}</p>
       )}
 
       <div className="space-y-1.5">
@@ -107,7 +109,7 @@ export function ChartTooltip({
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
                 <span className="text-slate-400 dark:text-slate-400 light:text-slate-600">
                   {entry.name}
-                  {isVix && <span className="text-[8px] ml-1 opacity-50">(skalert)</span>}:
+                  {isVix && <span className="text-[8px] ml-1 opacity-50">({t('chartTooltip.scaled')})</span>}:
                 </span>
               </div>
               <span className={`font-mono font-bold ${getTrendColorClass(display)}`}>
@@ -120,7 +122,7 @@ export function ChartTooltip({
         {/* Kapitalstrøm-seksjon (hvis aktiv) */}
         {showLiquidityFlow && flowItems.length > 0 && (
           <div className="mt-2 pt-1 border-t border-slate-800 dark:border-slate-800 light:border-slate-100 space-y-1">
-            <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest mb-1">Volum-momentum (vs. start)</p>
+            <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest mb-1">{t('chartTooltip.flowSection')}</p>
             {flowItems.map((item, i) => {
               const sym = String(item.dataKey).replace('_FLOW', '');
               const dollarVol = data[anchorIndex ?? data.length - 1]?.[`${sym}_dollar_volume`] as number || 0;
@@ -136,7 +138,7 @@ export function ChartTooltip({
                     </span>
                   </div>
                   <div className="flex justify-end">
-                    <span className="text-[9px] text-slate-500 font-mono italic">Verdi: ${formatLargeNumber(dollarVol)}</span>
+                    <span className="text-[9px] text-slate-500 font-mono italic">{t('chartTooltip.valueLabel')}: ${formatLargeNumber(dollarVol)}</span>
                   </div>
                 </div>
               );
@@ -150,7 +152,7 @@ export function ChartTooltip({
             <div className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                <span className="text-slate-500 dark:text-slate-500 light:text-slate-400">Total verdi handlet:</span>
+                <span className="text-slate-500 dark:text-slate-500 light:text-slate-400">{t('chartTooltip.totalTraded')}:</span>
               </div>
               <span className="font-mono font-bold text-slate-300 dark:text-slate-300 light:text-slate-700">
                 ${formatLargeNumber(totalDollarVolume)}

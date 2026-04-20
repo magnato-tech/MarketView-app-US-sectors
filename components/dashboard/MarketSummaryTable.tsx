@@ -1,22 +1,24 @@
 import React from 'react';
 import type { MarketSummaryTableProps } from './types';
 import { getStrongTrendColorClass } from '../../utils/formatters';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export const MarketSummaryTable: React.FC<MarketSummaryTableProps> = ({ summary }) => {
+  const { t } = useLanguage();
   return (
     <div className="bg-slate-900 dark:bg-slate-900 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl overflow-hidden shadow-sm transition-colors duration-300">
       <div className="p-6 border-b border-slate-800 dark:border-slate-800 light:border-slate-100 flex justify-between items-center">
-        <h3 className="text-lg font-bold text-white dark:text-white light:text-slate-900">Markedsoversikt</h3>
+        <h3 className="text-lg font-bold text-white dark:text-white light:text-slate-900">{t('marketSummaryFull.title')}</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm border-collapse">
           <thead className="bg-slate-950/50 dark:bg-slate-950/50 light:bg-slate-50 text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase text-[10px] font-black tracking-widest">
             <tr>
-              <th className="px-6 py-5">Instrument</th>
-              <th className="px-6 py-5">Ticker</th>
-              <th className="px-6 py-5">Siste Kurs</th>
-              <th className="px-6 py-5">Endring %</th>
-              <th className="px-6 py-5">Styrke</th>
+              <th className="px-6 py-5">{t('marketSummaryFull.instrument')}</th>
+              <th className="px-6 py-5">{t('marketSummaryFull.ticker')}</th>
+              <th className="px-6 py-5">{t('marketSummaryFull.lastPrice')}</th>
+              <th className="px-6 py-5">{t('marketSummaryFull.changePct')}</th>
+              <th className="px-6 py-5">{t('marketSummaryFull.strength')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 dark:divide-slate-800 light:divide-slate-100">

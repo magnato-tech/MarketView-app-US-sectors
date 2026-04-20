@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDashboard } from '../../contexts/DashboardContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { getChatResponse, ChatMessage } from '../../services/chatService';
 
 export const AIChat: React.FC = () => {
-  const { summary, rangeSummary, period, selectedTickers, isDarkMode } = useDashboard();
+  const { summary, rangeSummary, period, selectedTickers, data } = useDashboard();
+  const { t, language } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +37,8 @@ export const AIChat: React.FC = () => {
         rangeSummary,
         period,
         currentTickers: selectedTickers,
-        chartData: data
+        chartData: data,
+        language,
       });
 
       const assistantMsg: ChatMessage = {
@@ -49,7 +52,7 @@ export const AIChat: React.FC = () => {
       console.error("Chat error:", error);
       const errorMsg: ChatMessage = {
         role: 'assistant',
-        content: `Feil: ${error?.message || "Kunne ikke koble til analysesenteret."}`,
+        content: `${t('aiChat.errorPrefix')}: ${error?.message || t('aiChat.error')}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, errorMsg]);
@@ -65,10 +68,10 @@ export const AIChat: React.FC = () => {
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
           <h4 className="text-xs font-black text-slate-300 dark:text-slate-300 light:text-slate-900 uppercase tracking-widest">
-            AI Analytiker
+            {t('aiChat.title')}
           </h4>
         </div>
-        <span className="text-[9px] text-slate-500 font-bold uppercase">Live Chat</span>
+        <span className="text-[9px] text-slate-500 font-bold uppercase">{t('aiChat.liveBadge')}</span>
       </div>
 
       {/* Messages */}
@@ -82,7 +85,7 @@ export const AIChat: React.FC = () => {
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-500 light:text-slate-400 font-medium leading-relaxed">
-              Spør meg om vinnere, tapere, momentum eller risiko i det nåværende utvalget.
+              {t('aiChat.emptyHint')}
             </p>
           </div>
         )}
@@ -123,7 +126,7 @@ export const AIChat: React.FC = () => {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Still et spørsmål..."
+            placeholder={t('aiChat.placeholder')}
             className="w-full bg-slate-900 dark:bg-slate-900 light:bg-slate-50 border border-slate-700 dark:border-slate-700 light:border-slate-200 rounded-xl py-2.5 pl-4 pr-10 text-xs text-slate-200 dark:text-slate-200 light:text-slate-900 focus:outline-none focus:border-blue-500 transition-all"
           />
           <button

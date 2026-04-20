@@ -1,6 +1,7 @@
 import React from 'react';
 import type { SummaryStats } from '../../types';
 import type { SelectedInstrumentBadgesProps } from './types';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export function SelectedInstrumentBadges({
   summary,
@@ -9,6 +10,7 @@ export function SelectedInstrumentBadges({
   containerClassName = 'flex -space-x-2',
   labelClassName = 'text-[10px] text-slate-400 font-bold uppercase tracking-widest',
 }: SelectedInstrumentBadgesProps) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-center gap-2 min-w-0">
       <div className={containerClassName}>
@@ -16,7 +18,7 @@ export function SelectedInstrumentBadges({
           <div key={s.symbol} className={bubbleClassName} style={{ backgroundColor: s.color }} />
         ))}
       </div>
-      <span className={labelClassName}>Valgte instrumenter</span>
+      <span className={labelClassName}>{t('badges.selectedInstruments')}</span>
     </div>
   );
 }

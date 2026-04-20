@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { calculateRangeSummary } from '../../services/analysisService';
 import { MarketDataPoint, SummaryStats } from '../../types';
 
-describe('OpportunityMatrix Metrics', () => {
+describe('analysisService – calculateRangeSummary metrics', () => {
   it('should calculate flowScore correctly', () => {
     const mockData: MarketDataPoint[] = [
       { timestamp: '2026-01-01', XLK: 100, XLK_dollar_volume: 1000, total_dollar_volume: 1000 },

@@ -1,10 +1,14 @@
 import React from 'react';
 import type { AIInsightPanelProps } from './types';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export const AIInsightPanel: React.FC<AIInsightPanelProps> = ({ aiInsight, period }) => {
+  const { t } = useLanguage();
   const raw = (aiInsight || '').trim();
-  const commentMatch = raw.match(/(?:Analytikerkonsensus|Markedskommentar):\s*([\s\S]*?)(?:\n\s*(?:Sektoranbefaling nå|Utsikter for neste periode):|$)/i);
-  const outlookMatch = raw.match(/(?:Sektoranbefaling nå|Utsikter for neste periode):\s*([\s\S]*)$/i);
+  const consensusKeywords = '(?:Analytikerkonsensus|Markedskommentar|Analyst consensus|Market commentary)';
+  const outlookKeywords = '(?:Sektoranbefaling nå|Utsikter for neste periode|Sector outlook|Outlook for next period)';
+  const commentMatch = raw.match(new RegExp(`${consensusKeywords}:\\s*([\\s\\S]*?)(?:\\n\\s*${outlookKeywords}:|$)`, 'i'));
+  const outlookMatch = raw.match(new RegExp(`${outlookKeywords}:\\s*([\\s\\S]*)$`, 'i'));
   const fallbackParts = raw.split('\n').filter(Boolean);
   const commentText = (commentMatch?.[1] || fallbackParts[0] || '').trim();
   const outlookText = (outlookMatch?.[1] || fallbackParts.slice(1).join(' ') || '').trim();
@@ -19,35 +23,35 @@ export const AIInsightPanel: React.FC<AIInsightPanelProps> = ({ aiInsight, perio
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Aktiv Analyse</span>
+            <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{t('aiInsight.activeBadge')}</span>
           </div>
         </div>
         
         <div className="flex-1 space-y-4">
           <div className="flex items-center justify-between border-b border-white/5 dark:border-white/5 light:border-slate-100 pb-3">
             <h4 className="text-sm font-black text-white dark:text-white light:text-slate-900 flex items-center gap-2 uppercase tracking-wider">
-              Vår <span className="text-blue-500">Markedsrapport</span>
+              {t('aiInsight.titlePrefix')} <span className="text-blue-500">{t('aiInsight.titleSuffix')}</span>
             </h4>
-            <span className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 font-bold bg-slate-950 dark:bg-slate-950 light:bg-slate-100 px-2 py-1 rounded">Periode: {period}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-500 light:text-slate-400 font-bold bg-slate-950 dark:bg-slate-950 light:bg-slate-100 px-2 py-1 rounded">{t('aiInsight.periodLabel')}: {period}</span>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <div className="text-[10px] font-black text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                Analytikerkonsensus
+                {t('aiInsight.consensusHeading')}
               </div>
               <p className="text-slate-300 dark:text-slate-300 light:text-slate-700 text-sm leading-relaxed font-medium">
-                {commentText || "Genererer analyse av nåværende markedssituasjon..."}
+                {commentText || t('aiInsight.consensusFallback')}
               </p>
             </div>
             <div className="space-y-2 border-t md:border-t-0 md:border-l border-white/5 dark:border-white/5 light:border-slate-100 pt-4 md:pt-0 md:pl-6">
               <div className="text-[10px] font-black text-slate-500 dark:text-slate-500 light:text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <svg className="w-3 h-3 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                Sektoranbefaling nå
+                {t('aiInsight.outlookHeading')}
               </div>
               <p className="text-slate-400 dark:text-slate-400 light:text-slate-600 text-sm leading-relaxed italic">
-                {outlookText || "Vurderer makroøkonomiske utsikter..."}
+                {outlookText || t('aiInsight.outlookFallback')}
               </p>
             </div>
           </div>

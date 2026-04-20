@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { MainLineChart } from '../../components/dashboard/MainLineChart';
 import { ChartTooltip } from '../../components/dashboard/ChartTooltip';
+import { renderWithLang } from './helpers';
 
 // Mock Recharts since it's hard to test SVG-based charts in JSDOM
 vi.mock('recharts', async () => {
@@ -10,17 +11,42 @@ vi.mock('recharts', async () => {
   return {
     ...original,
     ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
+    ComposedChart: ({ children, onMouseDown, onMouseMove, onMouseUp }: any) => (
+      <div 
+        data-testid="line-chart" 
+        onMouseDown={(e) => {
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          onMouseDown?.({ activeTooltipIndex: 0, chartX: 0, chartY: 0 });
+        }}
+        onMouseMove={(e) => {
+          onMouseMove?.({ activeTooltipIndex: 5, chartX: 100, chartY: 100 });
+        }}
+        onMouseUp={() => onMouseUp?.()}
+      >
+        {children}
+      </div>
+    ),
     LineChart: ({ children, onMouseDown, onMouseMove, onMouseUp }: any) => (
       <div 
         data-testid="line-chart" 
-        onMouseDown={(e) => onMouseDown?.({ activeTooltipIndex: 0 })}
-        onMouseMove={(e) => onMouseMove?.({ activeTooltipIndex: 5 })}
+        onMouseDown={(e) => {
+          onMouseDown?.({ activeTooltipIndex: 0, chartX: 0, chartY: 0 });
+        }}
+        onMouseMove={(e) => {
+          onMouseMove?.({ activeTooltipIndex: 5, chartX: 100, chartY: 100 });
+        }}
         onMouseUp={() => onMouseUp?.()}
       >
         {children}
       </div>
     ),
     ReferenceArea: ({ x1, x2 }: any) => <div data-testid="reference-area" data-x1={x1} data-x2={x2} />,
+    Bar: ({ children }: any) => <div>{children}</div>,
+    Cell: () => null,
+    Line: () => null,
+    XAxis: () => null,
+    YAxis: () => null,
+    Legend: () => null,
   };
 });
 
@@ -44,7 +70,7 @@ describe('MainLineChart - Drag to Select (Punkt 2)', () => {
 
   it('skal vise ReferenceArea når man drar i grafen', () => {
     const onTooltipContent = vi.fn(() => null);
-    render(
+    renderWithLang(
       <MainLineChart 
         data={mockData} 
         activeTickers={['AAPL']} 
@@ -66,7 +92,7 @@ describe('MainLineChart - Drag to Select (Punkt 2)', () => {
 
   it('skal vise "Nullstill valg" knapp etter at man har dratt ferdig', () => {
     const onTooltipContent = vi.fn(() => null);
-    render(
+    renderWithLang(
       <MainLineChart 
         data={mockData} 
         activeTickers={['AAPL']} 
@@ -85,7 +111,7 @@ describe('MainLineChart - Drag to Select (Punkt 2)', () => {
 
   it('skal fjerne markering når man klikker på "Nullstill valg"', () => {
     const onTooltipContent = vi.fn(() => null);
-    render(
+    renderWithLang(
       <MainLineChart 
         data={mockData} 
         activeTickers={['AAPL']} 
@@ -128,7 +154,7 @@ describe('ChartTooltip - Range Calculation (Punkt 2)', () => {
       { dataKey: 'AAPL', name: 'Apple', value: 40, color: '#ff0000' }
     ];
 
-    render(
+    renderWithLang(
       <ChartTooltip 
         active={true} 
         payload={payload} 

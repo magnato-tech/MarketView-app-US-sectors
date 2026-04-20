@@ -4,6 +4,8 @@ interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   title?: string;
+  defaultMessage?: string;
+  retryLabel?: string;
 }
 
 interface State {
@@ -38,16 +40,16 @@ export class ErrorBoundary extends Component<Props, State> {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h3 className="text-lg font-bold text-white">{this.props.title || 'Noe gikk galt'}</h3>
+          <h3 className="text-lg font-bold text-white">{this.props.title || 'Noe gikk galt / Something went wrong'}</h3>
           <p className="text-slate-400 text-sm max-w-md mx-auto">
-            {this.state.error?.message || 'En uventet feil oppstod i denne komponenten.'}
+            {this.state.error?.message || this.props.defaultMessage || 'En uventet feil oppstod i denne komponenten.'}
           </p>
           <button
             type="button"
             className="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
             onClick={() => this.setState({ hasError: false, error: null })}
           >
-            Prøv igjen
+            {this.props.retryLabel || 'Prøv igjen / Retry'}
           </button>
         </div>
       );

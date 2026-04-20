@@ -1,9 +1,11 @@
 import React from 'react';
 import { useDashboard } from '../../contexts/DashboardContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { getStrongTrendColorClass } from '../../utils/formatters';
 
 export const Leaderboard: React.FC = () => {
   const { summary, rangeSummary, loading, period } = useDashboard();
+  const { t } = useLanguage();
 
   if (loading || summary.length === 0) {
     return (
@@ -53,7 +55,7 @@ export const Leaderboard: React.FC = () => {
         <div className="flex justify-between items-start mb-5">
           <div>
             <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.2em]">
-              Vinner siste {period}
+              {t('leaderboard.winnerLast', { period })}
             </span>
             <h3 className="text-2xl font-black text-white mt-1 tracking-tight">{sorted[0]?.name}</h3>
             <div className="flex items-center gap-2 mt-2">
@@ -65,18 +67,18 @@ export const Leaderboard: React.FC = () => {
             <div className={`text-3xl font-black font-mono leading-none drop-shadow-md ${sorted[0]?.changePct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {sorted[0]?.changePct > 0 ? '+' : ''}{sorted[0]?.changePct}%
             </div>
-            <div className="text-[9px] text-blue-200 font-black uppercase mt-2 tracking-widest opacity-80">Total Return</div>
+            <div className="text-[9px] text-blue-200 font-black uppercase mt-2 tracking-widest opacity-80">{t('leaderboard.totalReturn')}</div>
           </div>
         </div>
         
         <div className="grid grid-cols-3 gap-3">
           <MetricBadge 
-            label="Rel. Strength" 
+            label={t('leaderboard.metrics.relStrength')}
             value={`${(sorted[0]?.metrics?.relativeStrength ?? 0) > 0 ? '+' : ''}${sorted[0]?.metrics?.relativeStrength ?? 0}%`} 
             colorClass={(sorted[0]?.metrics?.relativeStrength ?? 0) > 0 ? 'text-emerald-400' : 'text-rose-300'} 
           />
-          <MetricBadge label="Volatility" value={`${sorted[0]?.metrics?.volatility ?? 0}%`} colorClass="text-blue-100" />
-          <MetricBadge label="Max DD" value={`${sorted[0]?.metrics?.maxDrawdown ?? 0}%`} colorClass="text-rose-300" />
+          <MetricBadge label={t('leaderboard.metrics.volatility')} value={`${sorted[0]?.metrics?.volatility ?? 0}%`} colorClass="text-blue-100" />
+          <MetricBadge label={t('leaderboard.metrics.maxDrawdown')} value={`${sorted[0]?.metrics?.maxDrawdown ?? 0}%`} colorClass="text-rose-300" />
         </div>
       </div>
 
@@ -88,7 +90,7 @@ export const Leaderboard: React.FC = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" />
               </svg>
-              Momentum Leaders
+              {t('leaderboard.momentumLeaders')}
             </h4>
           </div>
           <div className="divide-y divide-slate-800 dark:divide-slate-800 light:divide-slate-100">
@@ -108,13 +110,13 @@ export const Leaderboard: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <div className="flex flex-col">
-                    <span className="text-[7px] text-slate-500 font-bold uppercase leading-tight">Rel. Strength</span>
+                    <span className="text-[7px] text-slate-500 font-bold uppercase leading-tight">{t('leaderboard.metrics.relStrength')}</span>
                     <span className={`text-[9px] font-mono font-bold ${(item.metrics?.relativeStrength ?? 0) > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                       {(item.metrics?.relativeStrength ?? 0) > 0 ? '+' : ''}{item.metrics?.relativeStrength ?? 0}%
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[7px] text-slate-500 font-bold uppercase leading-tight">Volatility</span>
+                    <span className="text-[7px] text-slate-500 font-bold uppercase leading-tight">{t('leaderboard.metrics.volatility')}</span>
                     <span className="text-[9px] font-mono font-bold text-slate-400">{item.metrics?.volatility ?? 0}%</span>
                   </div>
                 </div>
@@ -130,7 +132,7 @@ export const Leaderboard: React.FC = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12 13a1 1 0 100 2h5a1 1 0 001-1V9a1 1 0 10-2 0v2.586l-4.293-4.293a1 1 0 00-1.414 0L8 9.586 3.707 5.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L11 9.414 14.586 13H12z" clipRule="evenodd" />
               </svg>
-              Mean Reversion?
+              {t('leaderboard.meanReversion')}
             </h4>
           </div>
           <div className="divide-y divide-slate-800 dark:divide-slate-800 light:divide-slate-100">
@@ -150,11 +152,11 @@ export const Leaderboard: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <div className="flex flex-col">
-                    <span className="text-[7px] text-slate-500 font-bold uppercase leading-tight">Max Drawdown</span>
+                    <span className="text-[7px] text-slate-500 font-bold uppercase leading-tight">{t('leaderboard.metrics.maxDrawdown')}</span>
                     <span className="text-[9px] font-mono font-bold text-rose-500">{item.metrics?.maxDrawdown ?? 0}%</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[7px] text-slate-500 font-bold uppercase leading-tight">Volatility</span>
+                    <span className="text-[7px] text-slate-500 font-bold uppercase leading-tight">{t('leaderboard.metrics.volatility')}</span>
                     <span className="text-[9px] font-mono font-bold text-slate-400">{item.metrics?.volatility ?? 0}%</span>
                   </div>
                 </div>

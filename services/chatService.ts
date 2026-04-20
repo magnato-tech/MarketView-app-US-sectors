@@ -1,5 +1,6 @@
 import { SummaryStats, Period, MarketDataPoint } from "../types";
 import { RangeSummaryRow } from "./analysisService";
+import type { Language } from "../i18n/types";
 
 /**
  * AI Chat Service for MarketView
@@ -32,6 +33,7 @@ export const getChatResponse = async (
     period: Period;
     currentTickers: string[];
     chartData?: MarketDataPoint[];
+    language?: Language;
   }
 ): Promise<ChatResponse> => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 
@@ -39,8 +41,14 @@ export const getChatResponse = async (
                  (typeof process !== 'undefined' && process.env.GEMINI_API_KEY) || 
                  (typeof process !== 'undefined' && process.env.API_KEY);
 
+  const language: Language = context.language ?? 'no';
+
   if (!apiKey) {
-    return { answer: "AI-chat er deaktivert (mangler API-nøkkel)." };
+    return {
+      answer: language === 'en'
+        ? 'AI chat is disabled (missing API key).'
+        : 'AI-chat er deaktivert (mangler API-nøkkel).',
+    };
   }
 
   // Finn signifikante volum-topper eller divergenser i chartData
@@ -75,8 +83,16 @@ export const getChatResponse = async (
     });
   }
 
-  // Bygg kontekst for AI
-  const marketContext = `
+  const marketContext = language === 'en' ? `
+Current period: ${context.period}
+Selected instruments: ${context.currentTickers.join(', ')}
+
+Market data (ranking and performance):
+${context.rangeSummary.map(s => {
+    const m = s.metrics;
+    return `- ${s.name} (${s.symbol}): RS ${m?.relativeStrength || 'N/A'}, Flow ${m?.flowScore || 'N/A'}%, Change ${s.changePct.toFixed(2)}%, Volatility ${m?.volatility.toFixed(1) || 'N/A'}%, Trend: ${m?.trendStatus || 'N/A'}`;
+  }).join('\n')}
+` : `
 Nåværende periode: ${context.period}
 Valgte instrumenter: ${context.currentTickers.join(', ')}
 
@@ -85,34 +101,51 @@ ${context.rangeSummary.map(s => {
     const m = s.metrics;
     return `- ${s.name} (${s.symbol}): RS ${m?.relativeStrength || 'N/A'}, Flow ${m?.flowScore || 'N/A'}%, Endring ${s.changePct.toFixed(2)}%, Volatilitet ${m?.volatility.toFixed(1) || 'N/A'}%, Trend: ${m?.trendStatus || 'N/A'}`;
   }).join('\n')}
-
-Instruksjoner for Opportunity Matrix:
-- Quadrant 1 (Leaders): RS > 0 og Flow > 10%
-- Quadrant 2 (Improving): RS < 0 og Flow > 10%
-- Quadrant 3 (Weakening): RS > 0 og Flow < -10%
-- Quadrant 4 (Laggards): RS < 0 og Flow < -10%
 `;
 
-  const prompt = `
+  const prompt = language === 'en' ? `
+You are a professional Wall Street analyst assistant inside the MarketView app.
+The user asks questions about the market data shown in the dashboard, including price action and capital flow (volume).
+
+Dashboard context:
+${marketContext}
+
+Divergence signals from the chart data:
+${divergenceContext || 'No clear divergences observed in the recent data.'}
+
+Instructions:
+1. Answer briefly, concisely and analytically in English.
+2. Only use the data above.
+3. Pay special attention to 'divergence' – if volume (capital flow) is high while price stays flat, explain that this often signals institutional accumulation (buying) or distribution (selling).
+4. Highlight the clearest relative-strength winners and laggards, and propose a short shortlist for the user where it makes sense.
+5. Explain that volume without price movement means there is an intense battle between buyers and sellers at that level.
+
+Reply in JSON format:
+{
+  "answer": "Your text answer here",
+  "suggestedActions": []
+}
+` : `
 Du er en profesjonell Wall Street analytiker-assistent i appen MarketView.
 Brukeren stiller deg spørsmål om markedsdataene som er synlige i dashboardet, inkludert prisbevegelser og kapitalstrøm (volum).
 
 Kontekst fra dashboardet:
 ${marketContext}
 
+Divergenssignaler fra kurvedataene:
+${divergenceContext || 'Ingen tydelige divergenser observert i de siste dataene.'}
+
 Instruksjoner:
 1. Svar kort, konsist og analytisk på norsk.
 2. Bruk kun dataene som er oppgitt over.
 3. Vær spesielt oppmerksom på 'Divergens' – hvis volumet (kapitalstrømmen) er høyt mens prisen står stille, forklar at dette ofte betyr institusjonell akkumulering (kjøp) eller distribusjon (salg).
-4. NYHET: Analyser Opportunity Matrix (RS vs Flow). Lag alltid en kort "Actionable Shortlist" til brukeren i svaret ditt:
-   - Nevn de sterkeste 'Leaders' (hvis noen).
-   - Identifiser 'Improving' kandidater som kan være neste vinnere.
+4. Pek på de tydeligste relativ styrke-vinnerne og taperne i datasettet, og foreslå en kort handleliste («shortlist») til brukeren der det gir mening.
 5. Forklar at volum uten prisbevegelse betyr at det er en intens kamp mellom kjøpere og selgere på det nivået.
 
 Svar i JSON-format:
 {
   "answer": "Ditt tekstsvar her",
-  "suggestedActions": [] 
+  "suggestedActions": []
 }
 `;
 
@@ -150,7 +183,7 @@ Svar i JSON-format:
 
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error("Tomt svar fra AI");
+      if (!text) throw new Error(language === 'en' ? 'Empty response from AI' : 'Tomt svar fra AI');
 
       // Forsøk å parse JSON, men håndter også råtekst hvis modellen ikke følger formatet
       try {
@@ -171,5 +204,5 @@ Svar i JSON-format:
     }
   }
 
-  throw lastError || new Error("Kunne ikke koble til analysesenteret.");
+  throw lastError || new Error(language === 'en' ? 'Could not reach the analysis backend.' : 'Kunne ikke koble til analysesenteret.');
 };
