@@ -8,15 +8,19 @@ interface CardProps {
   headerAction?: React.ReactNode;
 }
 
-export const Card: React.FC<CardProps> = ({ 
+export const Card: React.FC<CardProps & React.HTMLAttributes<HTMLDivElement>> = ({ 
   children, 
   className = "", 
   title, 
   subtitle,
-  headerAction 
+  headerAction,
+  ...props
 }) => {
   return (
-    <div className={`bg-slate-900/50 dark:bg-slate-900/50 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 shadow-xl transition-colors duration-300 ${className}`}>
+    <div 
+      {...props}
+      className={`bg-slate-900/50 dark:bg-slate-900/50 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 shadow-xl transition-colors duration-300 ${className}`}
+    >
       {(title || subtitle || headerAction) && (
         <div className="flex justify-between items-start mb-6">
           <div>

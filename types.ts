@@ -22,6 +22,7 @@ export interface SummaryStats {
   lastPrice: number;
   percentChange: number;
   color: string;
+  timestamp?: string; // Lagt til for backtesting
   // Nye fundamentale felt
   marketCap?: number;
   peRatio?: number;
@@ -30,7 +31,79 @@ export interface SummaryStats {
   high52w?: number;
   low52w?: number;
   volume?: number;
+  // Tekniske indikatorer for Quant Engine
+  rsi?: number;
+  sma50?: number;
+  sma200?: number;
 }
+
+export interface BotConfig {
+  id: string;
+  name: string;
+  version: string;
+  mode: 'Simple' | 'Advanced';
+  enabled: boolean;
+  entryLogic: {
+    vixFilterEnabled: boolean;
+    vixThreshold: number;
+    primarySma: number;
+    secondarySma: number;
+    momentumPeriodDays: number;
+    minRelativeStrengthScore: number;
+    kpiWeights: {
+      momentum: number;
+      rsi: number;
+      pe: number;
+    };
+  };
+  stopLossModule: {
+    type: 'Static' | 'Dynamic_Excel_Optimizer';
+    optimizationRange: [number, number];
+    stepInterval: number;
+    lookbackPeriodMonths: number;
+    currentOptimalSl: number;
+    staticSlPercent?: number;
+  };
+  swapLogic: {
+    enabled: boolean;
+    alphaBufferPercent: number;
+    rebalanceDay: 'Monday' | 'Daily';
+  };
+  riskManagement: {
+    maxRiskPerTradePercent: number;
+    maxPortfolioDrawdown: number;
+    emergencyExitEnabled: boolean;
+  };
+}
+
+export interface Trade {
+  id: string;
+  symbol: string;
+  type: 'BUY' | 'SELL';
+  price: number;
+  quantity: number;
+  timestamp: string;
+  reason: string;
+}
+
+export interface BotState {
+  botId: string;
+  balance: number;
+  positions: Array<{
+    symbol: string;
+    quantity: number;
+    averagePrice: number;
+    highestPriceSinceEntry: number;
+  }>;
+  history: Trade[];
+  performance: {
+    totalReturn: number;
+    dailyReturns: number[];
+    sharpeRatio: number;
+    maxDrawdown: number;
+  };
+}
+
 
 export interface AppState {
   selectedTickers: string[];

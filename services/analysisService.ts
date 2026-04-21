@@ -152,3 +152,74 @@ export const calculateSMA = (data: number[], window: number): (number | null)[] 
   }
   return result;
 };
+
+/**
+ * Dynamic Excel Optimizer: Simulerer trailing stop-loss for å finne optimal prosent.
+ * Basert på brukerens algoritme: testing av 1-80% stop-loss.
+ */
+export interface StopLossSimResult {
+  slPercent: number;
+  totalReturn: number;
+  tradeCount: number;
+  winRate: number;
+}
+
+export const simulateTrailingStop = (
+  prices: { high: number; low: number; open: number; close: number }[],
+  slPercent: number
+): number => {
+  let inPosition = true; // Vi antar entry på dag 1 for optimalisering
+  let entryPrice = prices[0].open;
+  let highestPrice = prices[0].high;
+  let cumulativeReturn = 1.0;
+
+  for (let i = 1; i < prices.length; i++) {
+    const day = prices[i];
+    
+    if (inPosition) {
+      highestPrice = Math.max(highestPrice, day.high);
+      const stopLevel = highestPrice * (1 - slPercent);
+
+      if (day.low <= stopLevel) {
+        // Exit trade
+        const exitPrice = Math.max(stopLevel, day.open); // Håndter gap down
+        cumulativeReturn *= (exitPrice / entryPrice);
+        inPosition = false;
+      }
+    } else {
+      // Re-entry logikk: For optimalisering antar vi re-entry neste dag
+      // for å se den totale effekten av denne SL% over hele perioden.
+      inPosition = true;
+      entryPrice = day.open;
+      highestPrice = day.high;
+    }
+  }
+
+  // Hvis vi fortsatt er i posisjon ved slutten av perioden
+  if (inPosition) {
+    const lastPrice = prices[prices.length - 1].close;
+    cumulativeReturn *= (lastPrice / entryPrice);
+  }
+
+  return (cumulativeReturn - 1) * 100; // Avkastning i %
+};
+
+export const findOptimalStopLoss = (
+  prices: { high: number; low: number; open: number; close: number }[]
+): { optimalSL: number; curve: { sl: number; profit: number }[] } => {
+  const curve = [];
+  let maxProfit = -Infinity;
+  let optimalSL = 0.10; // Default
+
+  for (let sl = 0.01; sl <= 0.80; sl += 0.01) {
+    const profit = simulateTrailingStop(prices, sl);
+    curve.push({ sl: Math.round(sl * 100), profit });
+    
+    if (profit > maxProfit) {
+      maxProfit = profit;
+      optimalSL = sl;
+    }
+  }
+
+  return { optimalSL, curve };
+};
