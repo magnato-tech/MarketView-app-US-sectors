@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useTrading } from '../contexts/TradingContext';
 import { useDashboard } from '../contexts/DashboardContext';
 import { Card } from './ui/Card';
-import { Settings, Play, Pause, RefreshCw, Zap, ShieldAlert, BarChart3, Info, Activity } from 'lucide-react';
+import { Settings, Play, Pause, RefreshCw, Zap, ShieldAlert, BarChart3, Info, Activity, Lock, Unlock } from 'lucide-react';
 import { BotConfig } from '../types';
 import { BacktestResultModal } from './BacktestResultModal';
+import { optimizeBotConfig } from '../services/optimizationService';
+import { fetchMarketData } from '../services/marketDataService';
 
 interface BotCardProps {
   config: BotConfig;
@@ -16,9 +18,19 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
   const { summary } = useDashboard();
   const [isEditing, setIsEditing] = useState(false);
   const [isBacktesting, setIsBacktesting] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optProgress, setOptProgress] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [backtestPeriod, setBacktestPeriod] = useState<'1y' | '2y' | '5y'>('1y');
   const [localConfig, setLocalConfig] = useState(config);
+
+  // Låse-tilstand for parametere
+  const [lockedParams, setLockedParams] = useState({
+    sma: true,
+    momentum: true,
+    weights: true,
+    stopLoss: true
+  });
 
   const handleSave = () => {
     updateBotConfig(localConfig);
@@ -28,7 +40,6 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
   const handleBacktest = async () => {
     setIsBacktesting(true);
     try {
-      // Bruk alle tilgjengelige sektorer/instrumenter for backtest
       const symbols = summary.map(s => s.symbol);
       await runBacktest(localConfig, symbols, backtestPeriod);
       setShowResult(true);
@@ -37,6 +48,39 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
     } finally {
       setIsBacktesting(false);
     }
+  };
+
+  const handleOptimize = async () => {
+    setIsOptimizing(true);
+    setOptProgress(0);
+    try {
+      const symbols = summary.map(s => s.symbol);
+      const { data } = await fetchMarketData(symbols, backtestPeriod, '1d');
+      
+      const optimized = await optimizeBotConfig(
+        localConfig,
+        data,
+        symbols,
+        {
+          smaRange: [10, 20, 50, 100, 200],
+          momentumRange: [5, 10, 14, 21, 30, 60],
+          weightStep: 0.1,
+          lockedParams
+        },
+        (p) => setOptProgress(p)
+      );
+      
+      setLocalConfig(optimized);
+      updateBotConfig(optimized);
+    } catch (err) {
+      console.error('Optimization failed:', err);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  const toggleLock = (param: keyof typeof lockedParams) => {
+    setLockedParams(prev => ({ ...prev, [param]: !prev[param] }));
   };
 
   const handleChange = (path: string, value: any) => {
@@ -81,7 +125,7 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
           </select>
           <button 
             onClick={handleBacktest}
-            disabled={isBacktesting}
+            disabled={isBacktesting || isOptimizing}
             className={`p-2 rounded-lg transition-colors ${isBacktesting ? 'bg-blue-600/20 text-blue-400' : 'bg-slate-800 text-slate-400 hover:text-blue-400'}`}
             title={`Kjør Backtest (${backtestPeriod})`}
           >
@@ -102,6 +146,22 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
         </div>
       </div>
 
+      {/* Optimization Progress Bar */}
+      {isOptimizing && (
+        <div className="mb-6 space-y-2 animate-in fade-in duration-300">
+          <div className="flex justify-between text-[9px] font-black text-blue-400 uppercase tracking-widest">
+            <span>Optimaliserer Bot...</span>
+            <span>{Math.round(optProgress)}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-300" 
+              style={{ width: `${optProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Performance Mini-Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/50">
@@ -120,39 +180,53 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
 
       {isEditing ? (
         <div className="space-y-5 animate-in slide-in-from-top-2 duration-200">
-          {/* VIX Threshold */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <ShieldAlert className="w-3 h-3" /> VIX Threshold
-              </label>
-              <span className="text-[10px] font-mono font-bold text-blue-400">{localConfig.entryLogic.vixThreshold}</span>
-            </div>
-            <input 
-              type="range" min="15" max="40" step="0.5"
-              value={localConfig.entryLogic.vixThreshold}
-              onChange={(e) => handleChange('entryLogic.vixThreshold', parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-          </div>
-
           {/* SMA Filter */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
                 <BarChart3 className="w-3 h-3" /> SMA Filter
               </label>
-              <span className="text-[10px] font-mono font-bold text-blue-400">{localConfig.entryLogic.primarySma}d</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold text-blue-400">{localConfig.entryLogic.primarySma}d</span>
+                <button onClick={() => toggleLock('sma')} className="p-1 hover:bg-slate-800 rounded transition-colors">
+                  {lockedParams.sma ? <Lock className="w-3 h-3 text-slate-500" /> : <Unlock className="w-3 h-3 text-blue-400" />}
+                </button>
+              </div>
             </div>
             <select 
               value={localConfig.entryLogic.primarySma}
               onChange={(e) => handleChange('entryLogic.primarySma', parseInt(e.target.value))}
-              className="w-full bg-slate-800 border-slate-700 text-xs text-white rounded-lg p-2 focus:ring-blue-500"
+              disabled={lockedParams.sma && !isOptimizing}
+              className="w-full bg-slate-800 border-slate-700 text-xs text-white rounded-lg p-2 focus:ring-blue-500 disabled:opacity-50"
             >
+              <option value="10">10-day (Ultra Fast)</option>
               <option value="20">20-day (Fast)</option>
               <option value="50">50-day (Medium)</option>
-              <option value="200">200-day (Slow)</option>
+              <option value="100">100-day (Slow)</option>
+              <option value="200">200-day (Ultra Slow)</option>
             </select>
+          </div>
+
+          {/* Momentum Period */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Activity className="w-3 h-3" /> Momentum Dager
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold text-blue-400">{localConfig.entryLogic.momentumPeriodDays}d</span>
+                <button onClick={() => toggleLock('momentum')} className="p-1 hover:bg-slate-800 rounded transition-colors">
+                  {lockedParams.momentum ? <Lock className="w-3 h-3 text-slate-500" /> : <Unlock className="w-3 h-3 text-blue-400" />}
+                </button>
+              </div>
+            </div>
+            <input 
+              type="range" min="5" max="60" step="1"
+              value={localConfig.entryLogic.momentumPeriodDays}
+              onChange={(e) => handleChange('entryLogic.momentumPeriodDays', parseInt(e.target.value))}
+              disabled={lockedParams.momentum && !isOptimizing}
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50"
+            />
           </div>
 
           {/* Stop Loss */}
@@ -161,28 +235,44 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
                 <Zap className="w-3 h-3" /> Stop Loss %
               </label>
-              <span className="text-[10px] font-mono font-bold text-rose-400">{(localConfig.stopLossModule.currentOptimalSl * 100).toFixed(0)}%</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold text-rose-400">{(localConfig.stopLossModule.currentOptimalSl * 100).toFixed(0)}%</span>
+                <button onClick={() => toggleLock('stopLoss')} className="p-1 hover:bg-slate-800 rounded transition-colors">
+                  {lockedParams.stopLoss ? <Lock className="w-3 h-3 text-slate-500" /> : <Unlock className="w-3 h-3 text-rose-400" />}
+                </button>
+              </div>
             </div>
             <input 
               type="range" min="0.05" max="0.50" step="0.01"
               value={localConfig.stopLossModule.currentOptimalSl}
               onChange={(e) => handleChange('stopLossModule.currentOptimalSl', parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+              disabled={lockedParams.stopLoss && !isOptimizing}
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500 disabled:opacity-50"
             />
           </div>
 
-          <button 
-            onClick={handleSave}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-blue-900/20"
-          >
-            Save Configuration
-          </button>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button 
+              onClick={handleSave}
+              className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors"
+            >
+              Lagre Manuelt
+            </button>
+            <button 
+              onClick={handleOptimize}
+              disabled={isOptimizing}
+              className="py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+            >
+              {isOptimizing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Cpu className="w-3 h-3" />}
+              Optimaliser Bot
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-[10px]">
             <span className="text-slate-500 font-bold uppercase tracking-wider">Strategy</span>
-            <span className="text-slate-300 font-mono">{localConfig.entryLogic.primarySma}d SMA + VIX {localConfig.entryLogic.vixThreshold}</span>
+            <span className="text-slate-300 font-mono">{localConfig.entryLogic.primarySma}d SMA + Mom {localConfig.entryLogic.momentumPeriodDays}d</span>
           </div>
           <div className="flex items-center justify-between text-[10px]">
             <span className="text-slate-500 font-bold uppercase tracking-wider">Risk</span>

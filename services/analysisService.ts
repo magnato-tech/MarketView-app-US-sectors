@@ -168,6 +168,8 @@ export const simulateTrailingStop = (
   prices: { high: number; low: number; open: number; close: number }[],
   slPercent: number
 ): number => {
+  if (prices.length === 0) return 0;
+  
   let inPosition = true; // Vi antar entry på dag 1 for optimalisering
   let entryPrice = prices[0].open;
   let highestPrice = prices[0].high;
@@ -177,18 +179,23 @@ export const simulateTrailingStop = (
     const day = prices[i];
     
     if (inPosition) {
-      highestPrice = Math.max(highestPrice, day.high);
+      // Sjekk stop loss FØR vi oppdaterer highestPrice for dagen? 
+      // Nei, vanligvis kan man bli stoppet ut i løpet av dagen etter at en ny topp er nådd.
+      // Men stop loss er basert på highestPrice sett SÅ LANGT.
+      
       const stopLevel = highestPrice * (1 - slPercent);
 
       if (day.low <= stopLevel) {
         // Exit trade
-        const exitPrice = Math.max(stopLevel, day.open); // Håndter gap down
+        const exitPrice = Math.min(stopLevel, day.open); // Håndter gap down: hvis open er under stopLevel, selg på open
         cumulativeReturn *= (exitPrice / entryPrice);
         inPosition = false;
+      } else {
+        // Oppdater highestPrice kun hvis vi ikke ble stoppet ut
+        highestPrice = Math.max(highestPrice, day.high);
       }
     } else {
       // Re-entry logikk: For optimalisering antar vi re-entry neste dag
-      // for å se den totale effekten av denne SL% over hele perioden.
       inPosition = true;
       entryPrice = day.open;
       highestPrice = day.high;

@@ -4,6 +4,66 @@ import { processBotLogic } from './quantEngineService';
 import { calculateSMA } from './analysisService';
 
 /**
+ * En lettvekts simuleringsmotor for raske optimaliseringskjøringer.
+ * Unngår unødvendig objekt-opprettelse og fokuserer kun på sluttavkastning.
+ */
+export const fastSimulate = (
+  config: BotConfig,
+  data: any[],
+  technicals: Record<string, { sma: (number | null)[], rsi: number[] }>,
+  symbols: string[]
+): number => {
+  let balance = 100000;
+  let positions: any[] = [];
+  const initialCapital = 100000;
+
+  // Vi starter fra dag 50 for å ha SMA-data
+  for (let i = 50; i < data.length; i++) {
+    const dayData = data[i];
+    const prevDayData = data[i - 1];
+    const vixValue = (dayData['^VIX'] as number) || 20;
+
+    // Bygg SummaryStats for dagen
+    const dailySummary: SummaryStats[] = symbols.map(sym => {
+      const lastPrice = dayData[sym] as number;
+      const prevPrice = prevDayData[sym] as number;
+      return {
+        symbol: sym,
+        name: sym,
+        lastPrice,
+        percentChange: prevPrice ? ((lastPrice - prevPrice) / prevPrice) * 100 : 0,
+        color: '#000',
+        sma50: technicals[sym].sma[i] || undefined,
+        rsi: technicals[sym].rsi[i],
+        timestamp: dayData.timestamp
+      };
+    }).filter(s => !isNaN(s.lastPrice));
+
+    // Kjør bot-logikk
+    const botState: BotState = {
+      botId: config.id,
+      balance,
+      positions,
+      history: [],
+      performance: { totalReturn: 0, dailyReturns: [], sharpeRatio: 0, maxDrawdown: 0 }
+    };
+
+    const result = processBotLogic(config, botState, dailySummary, vixValue);
+    balance = result.newState.balance;
+    positions = result.newState.positions;
+  }
+
+  // Beregn sluttverdi
+  const lastDay = data[data.length - 1];
+  const positionsValue = positions.reduce((acc, pos) => {
+    const price = (lastDay[pos.symbol] as number) || pos.averagePrice;
+    return acc + (price * pos.quantity);
+  }, 0);
+
+  return ((balance + positionsValue - initialCapital) / initialCapital) * 100;
+};
+
+/**
  * Backtest Service
  * Simulerer en bots ytelse over historiske data.
  */
