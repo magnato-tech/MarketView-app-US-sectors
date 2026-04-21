@@ -78,7 +78,8 @@ function closeAtOrBefore(series: PriceSeries, t: number): { close: number | null
 
 export function mergeSeriesToChartData(
   symbols: string[],
-  bySymbol: Record<string, PriceSeries>
+  bySymbol: Record<string, PriceSeries>,
+  useRawPrices: boolean = false
 ): MarketDataPoint[] {
   const allTs = new Set<number>();
   for (const sym of symbols) {
@@ -109,8 +110,13 @@ export function mergeSeriesToChartData(
       const { close, volume } = closeAtOrBefore(series, t);
       if (close == null) continue;
       
-      // Beregn relativ endring %
-      point[sym] = parseFloat((((close - base) / base) * 100).toFixed(2));
+      if (useRawPrices) {
+        // Bruk faktiske priser i dollar
+        point[sym] = parseFloat(close.toFixed(2));
+      } else {
+        // Beregn relativ endring %
+        point[sym] = parseFloat((((close - base) / base) * 100).toFixed(2));
+      }
       
       // Beregn handelsverdi i dollar (Dollar Volume)
       const dollarVolume = close * (volume || 0);

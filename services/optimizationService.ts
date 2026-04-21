@@ -26,6 +26,9 @@ export const optimizeBotConfig = async (
   params: OptimizationParams,
   onProgress?: (progress: number) => void
 ): Promise<BotConfig> => {
+  // Sørg for at vi bruker råpriser hvis data ikke allerede er det
+  // (fetchMarketData i BotConfigurationCard bør kalles med useRawPrices=true)
+  
   let bestConfig = { ...currentConfig };
   let maxProfit = -Infinity;
 

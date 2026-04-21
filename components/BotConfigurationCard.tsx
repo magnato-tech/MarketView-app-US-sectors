@@ -55,7 +55,8 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
     setOptProgress(0);
     try {
       const symbols = summary.map(s => s.symbol);
-      const { data } = await fetchMarketData(symbols, backtestPeriod, '1d');
+      // Hent data med råpriser for korrekt optimalisering
+      const { data } = await fetchMarketData(symbols, backtestPeriod, '1d', true);
       
       const optimized = await optimizeBotConfig(
         localConfig,

@@ -67,6 +67,7 @@ export const fetchMarketData = async (
   symbols: string[],
   period: Period,
   interval: Interval,
+  useRawPrices: boolean = false,
   retries = 2
 ): Promise<{ data: MarketDataPoint[]; summary: SummaryStats[] }> => {
     const range = periodMap[period];
@@ -124,7 +125,7 @@ export const fetchMarketData = async (
       }
     }
 
-    const data = mergeSeriesToChartData(symbols, bySymbol);
+    const data = mergeSeriesToChartData(symbols, bySymbol, useRawPrices);
     const summary = buildSummary(symbols, bySymbol, metaBySymbol);
     return { data, summary };
 };

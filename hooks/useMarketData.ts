@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { MarketDataPoint, SummaryStats, Period, Interval } from '../types';
 import { fetchMarketData } from '../services/marketDataService';
 
-export const useMarketData = (selectedTickers: string[], period: Period, interval: Interval) => {
+export const useMarketData = (selectedTickers: string[], period: Period, interval: Interval, useRawPrices: boolean = false) => {
   const [data, setData] = useState<MarketDataPoint[]>([]);
   const [summary, setSummary] = useState<SummaryStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12,7 +12,7 @@ export const useMarketData = (selectedTickers: string[], period: Period, interva
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchMarketData(selectedTickers, period, interval);
+      const result = await fetchMarketData(selectedTickers, period, interval, useRawPrices);
       setData(result.data);
       setSummary(result.summary);
     } catch (err) {
@@ -21,7 +21,7 @@ export const useMarketData = (selectedTickers: string[], period: Period, interva
     } finally {
       setLoading(false);
     }
-  }, [selectedTickers, period, interval]);
+  }, [selectedTickers, period, interval, useRawPrices]);
 
   useEffect(() => {
     loadData();
