@@ -1,6 +1,6 @@
 import { SummaryStats, Period, MarketDataPoint } from "../types";
 import type { Language } from "../i18n/types";
-import { AISignal } from "../contexts/TradingContext";
+import { AISignal } from "../types/trading";
 
 /** Primærmodell for markedsrapport (oppdatert fra gemini-1.5-flash). */
 const GEMINI_MODEL_PRIMARY = "gemini-3.1-flash";

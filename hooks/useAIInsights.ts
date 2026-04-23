@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { SummaryStats, Period, MarketDataPoint } from '../types';
 import { getMarketInsights } from '../services/geminiService';
 import type { Language } from '../i18n/types';
-import { AISignal } from '../contexts/TradingContext';
+import { AISignal } from '../types/trading';
 
 const INSIGHT_CACHE_KEY = 'aiInsightCacheV1';
 const INSIGHT_TTL_MS = 30 * 60 * 1000; // 30 min

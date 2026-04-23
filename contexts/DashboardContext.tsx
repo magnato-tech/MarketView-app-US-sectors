@@ -5,9 +5,9 @@ import { TICKERS } from '../constants';
 import { getEtfHoldings } from '../services/etfService';
 
 import { RangeSummaryRow } from '../services/analysisService';
-import { AISignal } from './TradingContext';
+import { AISignal } from '../types/trading';
 
-export type DashboardTab = 'dashboard' | 'portfolio';
+export type DashboardTab = 'dashboard' | 'commandCenter' | 'factory' | 'lab';
 
 export type DetailType = 'sector' | 'etf' | 'stock';
 

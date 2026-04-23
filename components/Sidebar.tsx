@@ -4,13 +4,23 @@ import { TICKERS } from '../constants';
 import { useDashboard } from '../contexts/DashboardContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { Language } from '../i18n/types';
+import type { DashboardTab } from '../contexts/DashboardContext';
 
 interface SidebarProps {
   // Props fjernet da navigasjon nå styres via Context
 }
 
 const Sidebar: React.FC<SidebarProps> = () => {
-  const { isDarkMode, toggleDarkMode, setDetailContext, drilldownSector, activeTickers, handleTickerToggle } = useDashboard();
+  const {
+    isDarkMode,
+    toggleDarkMode,
+    setDetailContext,
+    drilldownSector,
+    activeTickers,
+    handleTickerToggle,
+    activeTab,
+    setActiveTab
+  } = useDashboard();
   const { language, setLanguage, t } = useLanguage();
   const indices = TICKERS.filter(ticker => ticker.category === 'Index');
   const sectors = TICKERS.filter(ticker => ticker.category === 'Sector');
@@ -137,6 +147,35 @@ const Sidebar: React.FC<SidebarProps> = () => {
           </button>
         </div>
       </div>
+
+      <section className="space-y-2">
+        <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] border-b pb-2 ${
+          isDarkMode ? 'text-slate-500 border-slate-800' : 'text-slate-400 border-slate-200'
+        }`}>Workspace</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { id: 'dashboard', label: 'Market' },
+            { id: 'commandCenter', label: 'Command Center' },
+            { id: 'lab', label: 'The Lab' },
+            { id: 'factory', label: 'Factory' },
+          ].map((tab: { id: DashboardTab; label: string }) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : isDarkMode
+                    ? 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                    : 'bg-white text-slate-500 hover:text-slate-900 border border-slate-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section>
         <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-5 border-b pb-2 ${

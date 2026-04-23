@@ -3,14 +3,14 @@ import { useTrading } from '../contexts/TradingContext';
 import { useDashboard } from '../contexts/DashboardContext';
 import { Card } from './ui/Card';
 import { Settings, Play, Pause, RefreshCw, Zap, ShieldAlert, BarChart3, Info, Activity, Lock, Unlock } from 'lucide-react';
-import { BotConfig } from '../types';
+import { BotConfig, BotState } from '../types';
 import { BacktestResultModal } from './BacktestResultModal';
 import { optimizeBotConfig } from '../services/optimizationService';
 import { fetchMarketData } from '../services/marketDataService';
 
 interface BotCardProps {
   config: BotConfig;
-  state: any;
+  state?: BotState;
 }
 
 export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) => {
@@ -95,7 +95,14 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
     setLocalConfig(newConfig);
   };
 
-  const isPositive = state.performance.totalReturn >= 0;
+  const effectiveState: BotState = state ?? {
+    botId: config.id,
+    balance: 100000,
+    positions: [],
+    history: [],
+    performance: { totalReturn: 0, dailyReturns: [], sharpeRatio: 0, maxDrawdown: 0 }
+  };
+  const isPositive = effectiveState.performance.totalReturn >= 0;
 
   return (
     <Card className={`p-5 border-slate-800 transition-all ${localConfig.enabled ? 'bg-slate-900/60' : 'bg-slate-950/40 opacity-75'}`}>
@@ -168,13 +175,13 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
         <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/50">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Return</p>
           <p className={`text-lg font-mono font-black ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isPositive ? '+' : ''}{state.performance.totalReturn.toFixed(2)}%
+                {isPositive ? '+' : ''}{effectiveState.performance.totalReturn.toFixed(2)}%
           </p>
         </div>
         <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/50">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Balance</p>
           <p className="text-lg font-mono font-black text-white">
-            ${(state.balance / 1000).toFixed(1)}k
+                ${(effectiveState.balance / 1000).toFixed(1)}k
           </p>
         </div>
       </div>
@@ -281,23 +288,23 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
           </div>
           <div className="flex items-center justify-between text-[10px]">
             <span className="text-slate-500 font-bold uppercase tracking-wider">Active Positions</span>
-            <span className="text-blue-400 font-mono font-bold">{state.positions.length}</span>
+            <span className="text-blue-400 font-mono font-bold">{effectiveState.positions.length}</span>
           </div>
           
           <div className="pt-3 flex gap-2">
             <div className="flex -space-x-2 overflow-hidden">
-              {state.positions.slice(0, 3).map((p: any) => (
+              {effectiveState.positions.slice(0, 3).map((p) => (
                 <div key={p.symbol} className="inline-block h-6 w-6 rounded-full ring-2 ring-slate-900 bg-slate-800 flex items-center justify-center text-[8px] font-black text-white">
                   {p.symbol.substring(0, 2)}
                 </div>
               ))}
-              {state.positions.length > 3 && (
+              {effectiveState.positions.length > 3 && (
                 <div className="inline-block h-6 w-6 rounded-full ring-2 ring-slate-900 bg-slate-800 flex items-center justify-center text-[8px] font-black text-slate-400">
-                  +{state.positions.length - 3}
+                  +{effectiveState.positions.length - 3}
                 </div>
               )}
             </div>
-            {state.positions.length === 0 && (
+            {effectiveState.positions.length === 0 && (
               <span className="text-[10px] text-slate-600 italic">No active positions</span>
             )}
           </div>

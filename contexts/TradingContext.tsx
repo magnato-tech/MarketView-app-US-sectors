@@ -2,34 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { BotConfig, BotState, Trade } from '../types';
 import { DEFAULT_BOT_CONFIGS } from '../services/quantEngineService';
 import { BacktestResult, runBacktest as executeBacktest } from '../services/backtestService';
-
-export type TradeType = 'BUY' | 'SELL';
-export type TradeSource = 'MANUAL' | 'AI' | 'BOT';
-
-export interface AISignal {
-  symbol: string;
-  type: TradeType;
-  quantity: number;
-  reason: string;
-}
-
-export interface Position {
-  symbol: string;
-  quantity: number;
-  averagePrice: number;
-}
-
-export interface Transaction {
-  id: string;
-  timestamp: number;
-  symbol: string;
-  type: TradeType;
-  price: number;
-  quantity: number;
-  source: TradeSource;
-  reason?: string;
-  botId?: string;
-}
+import { Position, TradeSource, TradeType, Transaction } from '../types/trading';
+import { BotDNA } from '../types/bot-dna';
+import { Deployment } from '../types/simulation';
 
 interface TradingContextType {
   cash: number;
@@ -45,8 +20,13 @@ interface TradingContextType {
   botStates: BotState[];
   updateBotConfig: (config: BotConfig) => void;
   addBot: (config: BotConfig) => void;
-  runBacktest: (config: BotConfig, symbols: string[]) => Promise<BacktestResult>;
+  runBacktest: (config: BotConfig, symbols: string[], period?: '1y' | '2y' | '5y') => Promise<BacktestResult>;
   backtestResults: Record<string, BacktestResult>;
+  publishedBots: BotDNA[];
+  deployments: Deployment[];
+  refreshPublishedBots: () => Promise<void>;
+  refreshDeployments: () => Promise<void>;
+  deployPublishedBot: (botId: string, allocatedCapitalNok: number) => Promise<void>;
   resetAll: () => void;
 }
 
@@ -65,6 +45,8 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Bot Arena state
   const [botConfigs, setBotConfigs] = useState<BotConfig[]>(DEFAULT_BOT_CONFIGS);
   const [backtestResults, setBacktestResults] = useState<Record<string, BacktestResult>>({});
+  const [publishedBots, setPublishedBots] = useState<BotDNA[]>([]);
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [botStates, setBotStates] = useState<BotState[]>(() => 
     DEFAULT_BOT_CONFIGS.map(config => ({
       botId: config.id,
@@ -113,6 +95,33 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     }
   }, []);
+
+  const refreshPublishedBots = useCallback(async () => {
+    try {
+      const response = await fetch('/api/factory/published');
+      const payload = (await response.json().catch(() => ({}))) as { bots?: BotDNA[] };
+      if (!response.ok) return;
+      setPublishedBots(payload.bots ?? []);
+    } catch {
+      // Best effort for UI.
+    }
+  }, []);
+
+  const refreshDeployments = useCallback(async () => {
+    try {
+      const response = await fetch('/api/factory/deployments');
+      const payload = (await response.json().catch(() => ({}))) as { deployments?: Deployment[] };
+      if (!response.ok) return;
+      setDeployments(payload.deployments ?? []);
+    } catch {
+      // Best effort for UI.
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshPublishedBots();
+    void refreshDeployments();
+  }, [refreshPublishedBots, refreshDeployments]);
 
   // Save to localStorage
   useEffect(() => {
@@ -203,11 +212,24 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
     }]);
   };
 
-  const runBacktest = async (config: BotConfig, symbols: string[]) => {
-    const result = await executeBacktest(config, symbols);
+  const runBacktest = async (config: BotConfig, symbols: string[], period: '1y' | '2y' | '5y' = '1y') => {
+    const result = await executeBacktest(config, symbols, period);
     setBacktestResults(prev => ({ ...prev, [config.id]: result }));
     return result;
   };
+
+  const deployPublishedBot = useCallback(async (botId: string, allocatedCapitalNok: number) => {
+    const response = await fetch('/api/factory/deployments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ botId, allocatedCapitalNok }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `Deploy failed with HTTP ${response.status}`);
+    }
+    await refreshDeployments();
+  }, [refreshDeployments]);
 
   const resetAll = () => {
     resetPortfolio();
@@ -236,6 +258,11 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
       addBot,
       runBacktest,
       backtestResults,
+      publishedBots,
+      deployments,
+      refreshPublishedBots,
+      refreshDeployments,
+      deployPublishedBot,
       resetAll
     }}>
       {children}

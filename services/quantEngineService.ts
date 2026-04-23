@@ -1,5 +1,5 @@
 import { SummaryStats, BotConfig, BotState, Trade } from '../types';
-import { calculateSMA, findOptimalStopLoss } from './analysisService';
+import { ITradingStrategy, StrategyStepInput, StrategyStepResult } from './strategies/types';
 
 /**
  * Quant Engine Service
@@ -205,4 +205,10 @@ export const processBotLogic = (
     },
     trades
   };
+};
+
+export const alphaRotatorStrategy: ITradingStrategy = {
+  id: 'alpha-rotator-v1',
+  step: ({ config, state, marketSummary, vixValue }: StrategyStepInput): StrategyStepResult =>
+    processBotLogic(config, state, marketSummary, vixValue),
 };

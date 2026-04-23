@@ -20,6 +20,8 @@ import { AIChat } from './dashboard/AIChat';
 import type { RechartsTooltipPayloadItem } from './dashboard/types';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PortfolioView } from './PortfolioView';
+import { FactoryDashboard } from './FactoryDashboard';
+import { LabDashboard } from './LabDashboard';
 import { TICKERS } from '../constants';
 import { getEtfHoldings, fetchETFDetailsSync } from '../services/etfService';
 
@@ -128,7 +130,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
     </div>
   ) : null;
 
-  if (activeTab === 'portfolio') {
+  if (activeTab === 'commandCenter') {
     return (
       <div className={`flex-1 p-4 lg:p-8 overflow-y-auto transition-[padding] duration-300 ${
         isDarkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
@@ -137,6 +139,26 @@ const MainDashboard: React.FC<DashboardProps> = ({
           {periodIntervalBar}
           <PortfolioView />
         </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'lab') {
+    return (
+      <div className={`flex-1 p-4 lg:p-8 overflow-y-auto transition-[padding] duration-300 ${
+        isDarkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
+      } ${panelOffset}`}>
+        <LabDashboard />
+      </div>
+    );
+  }
+
+  if (activeTab === 'factory') {
+    return (
+      <div className={`flex-1 p-4 lg:p-8 overflow-y-auto transition-[padding] duration-300 ${
+        isDarkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
+      } ${panelOffset}`}>
+        <FactoryDashboard />
       </div>
     );
   }

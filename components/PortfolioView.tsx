@@ -8,13 +8,34 @@ import { BotConfigurationCard } from './BotConfigurationCard';
 import { StrategySandbox } from './StrategySandbox';
 import { BotCreationWizard } from './BotCreationWizard';
 import { findOptimalStopLoss } from '../services/analysisService';
+import { BotState } from '../types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export const PortfolioView: React.FC = () => {
-  const { cash, positions, history, isAutoPilot, setIsAutoPilot, resetPortfolio, botConfigs, botStates, resetAll } = useTrading();
-  const { lastPrices, data } = useDashboard();
+  const {
+    cash,
+    positions,
+    history,
+    botConfigs,
+    botStates,
+    resetAll,
+    runBacktest,
+    backtestResults,
+    publishedBots,
+    deployments,
+    deployPublishedBot,
+    refreshPublishedBots,
+  } = useTrading();
+  const { lastPrices, data, summary, setActiveTab } = useDashboard();
   const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<'overview' | 'bots'>('overview');
   const [showWizard, setShowWizard] = useState(false);
+  const [isTestingBots, setIsTestingBots] = useState(false);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [selectedBotIds, setSelectedBotIds] = useState<string[]>([]);
+  const [selectedPublishedBotId, setSelectedPublishedBotId] = useState<string>('');
+  const [allocationNok, setAllocationNok] = useState<number>(50000);
+  const [deployStatus, setDeployStatus] = useState<string | null>(null);
 
   // Finn optimal stop-loss basert på den mest aktive ticker (f.eks. SPY eller XLK)
   const optimizationData = useMemo(() => {
@@ -43,6 +64,81 @@ export const PortfolioView: React.FC = () => {
   const initialCapital = 100000;
   const totalReturn = ((totalValue - initialCapital) / initialCapital) * 100;
   const isPositive = totalReturn >= 0;
+  const botStatesById = useMemo<Record<string, BotState>>(
+    () =>
+      botStates.reduce<Record<string, BotState>>((acc, state) => {
+        acc[state.botId] = state;
+        return acc;
+      }, {}),
+    [botStates]
+  );
+
+  const testSymbols = useMemo(() => {
+    const symbols = summary.map((s) => s.symbol).filter(Boolean);
+    return symbols.length > 0 ? symbols : ['SPY', 'XLK', 'XLE'];
+  }, [summary]);
+
+  const toggleSelectedBot = (botId: string) => {
+    setSelectedBotIds((prev) =>
+      prev.includes(botId) ? prev.filter((id) => id !== botId) : [...prev, botId]
+    );
+  };
+
+  const handleTestSelectedBots = async () => {
+    const targetIds = selectedBotIds.length > 0 ? selectedBotIds : botConfigs.slice(0, 2).map((b) => b.id);
+    if (targetIds.length === 0) return;
+    setIsTestingBots(true);
+    setTestError(null);
+    try {
+      const selectedConfigs = botConfigs.filter((b) => targetIds.includes(b.id));
+      await Promise.all(selectedConfigs.map((config) => runBacktest(config, testSymbols, '1y')));
+    } catch (error) {
+      setTestError(error instanceof Error ? error.message : 'Backtest feilet.');
+    } finally {
+      setIsTestingBots(false);
+    }
+  };
+
+  const comparisonChartData = useMemo(() => {
+    if (selectedBotIds.length === 0) return [];
+    const selectedResults = selectedBotIds
+      .map((id) => ({ id, result: backtestResults[id] }))
+      .filter((entry): entry is { id: string; result: NonNullable<typeof backtestResults[string]> } => Boolean(entry.result));
+    if (selectedResults.length === 0) return [];
+
+    const baseCurve = selectedResults[0].result.equityCurve;
+    return baseCurve.map((point, idx) => {
+      const row: Record<string, string | number> = {
+        timestamp: point.timestamp.slice(0, 10),
+        market: point.marketValue,
+      };
+      for (const entry of selectedResults) {
+        row[entry.id] = entry.result.equityCurve[idx]?.botValue ?? null;
+      }
+      return row;
+    });
+  }, [backtestResults, selectedBotIds]);
+
+  const selectedBotConfigs = useMemo(
+    () => botConfigs.filter((bot) => selectedBotIds.includes(bot.id)),
+    [botConfigs, selectedBotIds]
+  );
+
+  const linePalette = ['#3b82f6', '#10b981', '#a855f7', '#f59e0b', '#ef4444'];
+
+  const handleDeploy = async () => {
+    if (!selectedPublishedBotId) {
+      setDeployStatus('Velg en Published bot først.');
+      return;
+    }
+    try {
+      setDeployStatus('Deploying...');
+      await deployPublishedBot(selectedPublishedBotId, allocationNok);
+      setDeployStatus('Deployment opprettet.');
+    } catch (error) {
+      setDeployStatus(error instanceof Error ? error.message : 'Deployment feilet.');
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -51,9 +147,9 @@ export const PortfolioView: React.FC = () => {
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight uppercase italic flex items-center gap-3">
             <Wallet className="w-8 h-8 text-blue-500" />
-            Portefølje & Bot Arena
+            Command Center
           </h1>
-          <p className="text-slate-500 font-mono text-xs uppercase tracking-widest mt-1">Styr din kapital og dine AI-agenter</p>
+          <p className="text-slate-500 font-mono text-xs uppercase tracking-widest mt-1">Virtuell konto med deployede AI-agenter</p>
         </div>
         
         <div className="flex items-center bg-slate-900/80 p-1 rounded-2xl border border-slate-800 shadow-xl">
@@ -64,12 +160,12 @@ export const PortfolioView: React.FC = () => {
             <LayoutGrid className="w-3.5 h-3.5" />
             Oversikt
           </button>
-          <button 
-            onClick={() => setViewMode('bots')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'bots' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+          <button
+            onClick={() => setActiveTab('lab')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-slate-300"
           >
             <Cpu className="w-3.5 h-3.5" />
-            Bot Arena
+            Gå til The Lab
           </button>
         </div>
       </div>
@@ -248,17 +344,102 @@ export const PortfolioView: React.FC = () => {
               </Card>
             </div>
           </div>
+
+          <Card className="p-6 border-slate-800/60 bg-slate-900/20 backdrop-blur-md rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest">Deploy Published Bot</h3>
+              <button
+                onClick={() => refreshPublishedBots()}
+                className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200"
+              >
+                Refresh
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Published bot</label>
+                <select
+                  value={selectedPublishedBotId}
+                  onChange={(e) => setSelectedPublishedBotId(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 text-xs text-white rounded-lg p-2"
+                >
+                  <option value="">Velg bot</option>
+                  {publishedBots.map((bot) => (
+                    <option key={bot.id} value={bot.id}>
+                      {bot.id} (v{bot.version})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Kapital (NOK)</label>
+                <input
+                  type="number"
+                  min={1000}
+                  step={1000}
+                  value={allocationNok}
+                  onChange={(e) => setAllocationNok(Number(e.target.value))}
+                  className="w-full bg-slate-800 border border-slate-700 text-xs text-white rounded-lg p-2"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={handleDeploy}
+                  className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                >
+                  Deploy i Command Center
+                </button>
+              </div>
+            </div>
+            {deployStatus && <p className="mt-3 text-xs text-slate-300">{deployStatus}</p>}
+          </Card>
+
+          <Card className="p-6 border-slate-800/60 bg-slate-900/20 backdrop-blur-md rounded-2xl">
+            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4">Aktive Deployments</h3>
+            {deployments.length === 0 ? (
+              <p className="text-sm text-slate-500">Ingen deployments ennå.</p>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {deployments.map((deployment) => (
+                  <div key={deployment.id} className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                    <p className="text-xs text-slate-400 font-mono">{deployment.id}</p>
+                    <p className="text-sm text-white font-bold mt-1">{deployment.botId}</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      v{deployment.botVersion} · {deployment.status}
+                    </p>
+                    <p className="text-sm text-emerald-400 font-mono mt-2">
+                      NOK {deployment.allocatedCapitalNok.toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </>
       ) : (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {botConfigs.map((config, idx) => (
-              <BotConfigurationCard 
-                key={config.id} 
-                config={config} 
-                state={botStates[idx]} 
-              />
-            ))}
+            {botConfigs.map((config) => {
+              const checked = selectedBotIds.includes(config.id);
+              return (
+                <div key={config.id} className="space-y-2">
+                  <label className="flex items-center gap-2 text-xs text-slate-300 font-mono px-1">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelectedBot(config.id)}
+                      className="accent-blue-500"
+                    />
+                    Sammenlign {config.name}
+                  </label>
+                  <BotConfigurationCard
+                    config={config}
+                    state={botStatesById[config.id]}
+                  />
+                </div>
+              );
+            })}
             
             {/* Add Bot Placeholder */}
             <Card 
@@ -299,17 +480,72 @@ export const PortfolioView: React.FC = () => {
                   AI-motoren kjører backtester i bakgrunnen for å foreslå optimale innstillinger basert på de siste 12 månedene med markedsdata.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-4">
-                  <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center gap-2">
+                  <button
+                    onClick={handleTestSelectedBots}
+                    disabled={isTestingBots}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-400 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center gap-2"
+                  >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    Kjør Rolling Optimization
+                    {isTestingBots ? 'Tester botter...' : 'Test valgte botter'}
                   </button>
                   <button className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">
                     Last ned CSV Logg
                   </button>
                 </div>
+                {testError && (
+                  <p className="mt-4 text-xs text-rose-300">{testError}</p>
+                )}
               </div>
             </Card>
           </div>
+
+          <Card className="p-6 border-slate-800/60 bg-slate-900/20 backdrop-blur-md rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest">Utvikling per bot</h3>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                {selectedBotConfigs.length > 0 ? `${selectedBotConfigs.length} valgt` : 'Velg botter for sammenligning'}
+              </p>
+            </div>
+
+            {comparisonChartData.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                Kjør test på valgte botter for å vise kurver.
+              </p>
+            ) : (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={comparisonChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="timestamp" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155' }}
+                      labelStyle={{ color: '#e2e8f0' }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="market"
+                      stroke="#64748b"
+                      dot={false}
+                      strokeWidth={2}
+                      name="Benchmark"
+                    />
+                    {selectedBotConfigs.map((bot, idx) => (
+                      <Line
+                        key={bot.id}
+                        type="monotone"
+                        dataKey={bot.id}
+                        stroke={linePalette[idx % linePalette.length]}
+                        dot={false}
+                        strokeWidth={2}
+                        name={bot.name}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </Card>
         </div>
       )}
     </div>
