@@ -2,6 +2,7 @@ import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { LanguageProvider } from '../../contexts/LanguageContext';
 import { DashboardProvider } from '../../contexts/DashboardContext';
+import { TradingProvider } from '../../contexts/TradingContext';
 import type { Language } from '../../i18n/types';
 
 interface ProviderOptions extends Omit<RenderOptions, 'wrapper'> {
@@ -18,9 +19,11 @@ export const renderWithProviders = (ui: ReactElement, opts: ProviderOptions = {}
   return render(ui, {
     wrapper: ({ children }) => (
       <LanguageProvider initialLanguage={language}>
-        <DashboardProvider initialTickers={initialTickers}>
-          {children}
-        </DashboardProvider>
+        <TradingProvider>
+          <DashboardProvider initialTickers={initialTickers}>
+            {children}
+          </DashboardProvider>
+        </TradingProvider>
       </LanguageProvider>
     ),
     ...rest,

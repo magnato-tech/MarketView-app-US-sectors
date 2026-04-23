@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { TradingProvider, useTrading } from '../../contexts/TradingContext';
+import { INITIAL_CASH } from '../../constants/trading';
 import React from 'react';
 
 // Mock localStorage
@@ -9,6 +10,7 @@ const localStorageMock = (() => {
   return {
     getItem: (key: string) => store[key] || null,
     setItem: (key: string, value: string) => { store[key] = value.toString(); },
+    removeItem: (key: string) => { delete store[key]; },
     clear: () => { store = {}; },
   };
 })();
@@ -26,7 +28,7 @@ describe('TradingContext', () => {
 
   it('should initialize with default values', () => {
     const { result } = renderHook(() => useTrading(), { wrapper });
-    expect(result.current.cash).toBe(100000);
+    expect(result.current.cash).toBe(INITIAL_CASH);
     expect(result.current.positions).toEqual([]);
     expect(result.current.botConfigs.length).toBeGreaterThan(0);
   });
@@ -39,7 +41,7 @@ describe('TradingContext', () => {
       expect(success).toBe(true);
     });
 
-    expect(result.current.cash).toBe(100000 - (150 * 10));
+    expect(result.current.cash).toBe(INITIAL_CASH - (150 * 10));
     expect(result.current.positions.length).toBe(1);
     expect(result.current.positions[0]).toEqual({
       symbol: 'AAPL',
@@ -62,7 +64,7 @@ describe('TradingContext', () => {
       expect(success).toBe(true);
     });
 
-    expect(result.current.cash).toBe(100000 - (100 * 10) + (120 * 5));
+    expect(result.current.cash).toBe(INITIAL_CASH - (100 * 10) + (120 * 5));
     expect(result.current.positions[0].quantity).toBe(5);
     expect(result.current.history.length).toBe(2);
     expect(result.current.history[0].type).toBe('SELL');
@@ -72,11 +74,11 @@ describe('TradingContext', () => {
     const { result } = renderHook(() => useTrading(), { wrapper });
     
     act(() => {
-      const success = result.current.buy('GOOGL', 200000, 1);
+      const success = result.current.buy('GOOGL', INITIAL_CASH * 2, 1);
       expect(success).toBe(false);
     });
 
-    expect(result.current.cash).toBe(100000);
+    expect(result.current.cash).toBe(INITIAL_CASH);
     expect(result.current.positions.length).toBe(0);
   });
 
@@ -88,7 +90,7 @@ describe('TradingContext', () => {
       result.current.resetAll();
     });
 
-    expect(result.current.cash).toBe(100000);
+    expect(result.current.cash).toBe(INITIAL_CASH);
     expect(result.current.positions.length).toBe(0);
     expect(result.current.history.length).toBe(0);
   });

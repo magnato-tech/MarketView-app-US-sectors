@@ -7,6 +7,7 @@ import { BotConfig, BotState } from '../types';
 import { BacktestResultModal } from './BacktestResultModal';
 import { optimizeBotConfig } from '../services/optimizationService';
 import { fetchMarketData } from '../services/marketDataService';
+import { INITIAL_CASH } from '../constants/trading';
 
 interface BotCardProps {
   config: BotConfig;
@@ -97,7 +98,7 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
 
   const effectiveState: BotState = state ?? {
     botId: config.id,
-    balance: 100000,
+    balance: INITIAL_CASH,
     positions: [],
     history: [],
     performance: { totalReturn: 0, dailyReturns: [], sharpeRatio: 0, maxDrawdown: 0 }

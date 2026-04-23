@@ -39,29 +39,20 @@ const createGenesisBot = (): BotDNA => ({
   generation: 0,
   status: 'Candidate',
   tradingUniverse: {
-    allowedCategories: ['MAIN_SECTOR'],
+    allowedCategories: ['ETF'],
     focusMode: 'LOCKED_SINGLE',
-    preferredCategory: 'MAIN_SECTOR',
+    preferredCategory: 'ETF',
   },
   components: [
     {
+      id: 'ROTATION_MOMENTUM',
       type: 'signal',
-      id: 'TREND_SMA',
-      weight: 0.6,
+      weight: 1.0,
       params: {
-        fastPeriod: 20,
-        slowPeriod: 60,
-        intensity: 8,
-      },
-    },
-    {
-      type: 'filter',
-      id: 'CRISIS_DROP',
-      weight: 0.4,
-      params: {
-        lookbackDays: 3,
-        minDropPct: 3.5,
-        intensity: 3,
+        lookbackPeriod: 12,
+        rotationThresholdPct: 3.0,
+        trailingStopLossPct: 10.0,
+        universe: 'SMH,MOAT,GDX,RARE', // VanEck univers
       },
     },
   ],
@@ -69,59 +60,41 @@ const createGenesisBot = (): BotDNA => ({
 
 const createGenesisRules = (): RuleDefinition[] => [
   {
-    id: 'rule-trend-sma-fast',
+    id: 'rule-rotation-lookback',
     logic_gate: 'CHALLENGEABLE',
-    componentId: 'TREND_SMA',
-    paramKey: 'fastPeriod',
-    baselineValue: 20,
-    min: 10,
-    max: 80,
+    componentId: 'ROTATION_MOMENTUM',
+    paramKey: 'lookbackPeriod',
+    baselineValue: 12,
+    min: 4,
+    max: 26,
   },
   {
-    id: 'rule-trend-sma-slow',
+    id: 'rule-rotation-threshold',
     logic_gate: 'CHALLENGEABLE',
-    componentId: 'TREND_SMA',
-    paramKey: 'slowPeriod',
-    baselineValue: 60,
-    min: 30,
-    max: 200,
-  },
-  {
-    id: 'rule-crisis-threshold',
-    logic_gate: 'CHALLENGEABLE',
-    componentId: 'CRISIS_DROP',
-    paramKey: 'minDropPct',
-    baselineValue: 3.5,
-    min: 1.5,
-    max: 10,
-  },
-  {
-    id: 'rule-crisis-lookback',
-    logic_gate: 'CHALLENGEABLE',
-    componentId: 'CRISIS_DROP',
-    paramKey: 'lookbackDays',
-    baselineValue: 3,
-    min: 2,
-    max: 6,
+    componentId: 'ROTATION_MOMENTUM',
+    paramKey: 'rotationThresholdPct',
+    baselineValue: 3.0,
+    min: 1.0,
+    max: 10.0,
   },
 ];
 
 const chooseMockMutation = (): ChallengerParamProposal => {
-  const mutateSma = Math.random() >= 0.5;
-  if (mutateSma) {
-    const candidate = 18 + Math.floor(Math.random() * 7); // 18..24
+  const mutateLookback = Math.random() >= 0.5;
+  if (mutateLookback) {
+    const candidate = 8 + Math.floor(Math.random() * 8); // 8..15
     return {
-      componentId: 'TREND_SMA',
-      paramKey: 'fastPeriod',
-      value: candidate === 20 ? 19 : candidate,
+      componentId: 'ROTATION_MOMENTUM',
+      paramKey: 'lookbackPeriod',
+      value: candidate === 12 ? 13 : candidate,
     };
   }
 
-  let candidate = Number((3 + Math.random() * 1.5).toFixed(2)); // 3.00..4.50
-  if (candidate === 3.5) candidate = 3.6; // avoid no-op versus baseline
+  let candidate = Number((2 + Math.random() * 2).toFixed(1)); // 2.0..4.0
+  if (candidate === 3.0) candidate = 3.1;
   return {
-    componentId: 'CRISIS_DROP',
-    paramKey: 'minDropPct',
+    componentId: 'ROTATION_MOMENTUM',
+    paramKey: 'rotationThresholdPct',
     value: candidate,
   };
 };

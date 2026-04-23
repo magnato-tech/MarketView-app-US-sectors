@@ -4,8 +4,10 @@ import {
 } from 'recharts';
 import type { MainLineChartProps, ChartRangeSelection } from './types';
 import { calculateSMA } from '../../services/analysisService';
+import { useTrading as useTradingContext } from '../../contexts/TradingContext';
 import { useDashboard } from '../../contexts/DashboardContext';
 import { resolveTicker } from '../../utils/tickerResolver';
+import { INITIAL_CASH } from '../../constants/trading';
 
 export const MainLineChart: React.FC<MainLineChartProps> = ({ 
   data, 
@@ -21,7 +23,10 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
     activeDrilldownTickers,
     drilldownETF,
     activeEtfStockTickers,
+    analysisSettings
   } = useDashboard();
+  const { portfolioEquityCurve } = useTradingContext();
+  const { showPortfolio } = analysisSettings;
   const [rangeSelection, setRangeSelection] = useState<ChartRangeSelection | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null);
@@ -58,7 +63,7 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
     let currentMaxVolume = 0;
 
     // Enrich data with SMA, scaled VIX and Aggregated Dollar Volume
-    const enrichedData = data.map(d => {
+    const enrichedData = data.map((d, index) => {
       const newPoint = { ...d };
       
       // Beregn aggregert dollar-volum for de synlige tickerne
@@ -68,6 +73,27 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
         totalDollarVolume += vol;
       });
       newPoint['total_dollar_volume'] = totalDollarVolume;
+
+      // Legg til portefølje-data hvis aktivert
+      if (showPortfolio && Array.isArray(portfolioEquityCurve) && portfolioEquityCurve.length > 0) {
+        // Finn tilsvarende punkt i portefølje-kurven basert på dato
+        // Vi bruker en mer robust sjekk for dato-matching
+        const dDate = (d.timestamp && typeof d.timestamp === 'string') ? d.timestamp.split(' ')[0] : '';
+        const portfolioPoint = portfolioEquityCurve.find(p => p.timestamp && p.timestamp.startsWith(dDate));
+        
+        if (portfolioPoint) {
+          // Normaliser til % endring fra startkapital
+          newPoint['MY_PORTFOLIO'] = ((portfolioPoint.botValue - INITIAL_CASH) / INITIAL_CASH) * 100;
+        } else {
+          // Finn nærmeste forrige punkt hvis eksakt dato mangler
+          const lastPoint = [...portfolioEquityCurve].reverse().find(p => p.timestamp && p.timestamp < d.timestamp);
+          if (lastPoint) {
+            newPoint['MY_PORTFOLIO'] = ((lastPoint.botValue - INITIAL_CASH) / INITIAL_CASH) * 100;
+          } else {
+            newPoint['MY_PORTFOLIO'] = 0;
+          }
+        }
+      }
 
       // Finn max aggregert volum for skalering
       if (totalDollarVolume > currentMaxVolume) currentMaxVolume = totalDollarVolume;
@@ -379,6 +405,21 @@ export const MainLineChart: React.FC<MainLineChartProps> = ({
 
         return lines;
       })}
+
+      {showPortfolio && (
+        <Line
+          yAxisId="left"
+          type="monotone"
+          dataKey="MY_PORTFOLIO"
+          name="Min Portefølje"
+          stroke="#f59e0b" // Amber/Gull
+          strokeWidth={4}
+          dot={false}
+          activeDot={{ r: 8, strokeWidth: 0 }}
+          animationDuration={1500}
+          connectNulls
+        />
+      )}
       </ComposedChart>
     {rangeSelection && !isDragging && (
       <button

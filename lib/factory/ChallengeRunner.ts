@@ -36,8 +36,7 @@ export interface ChallengeRunResult {
   ollamaPrompt: string;
 }
 
-const INITIAL_CAPITAL = 100000;
-const TRANSACTION_FEE = 100;
+import { INITIAL_CASH, TRANSACTION_FEE } from '../../constants/trading';
 
 const createId = (): string =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -118,16 +117,50 @@ const evaluateBotDNA = async (
   }
 
   const runtimeBot = new BaseBot(bot);
-  const equityCurve: number[] = [INITIAL_CAPITAL];
+  const equityCurve: number[] = [INITIAL_CASH];
   const dailyReturns: number[] = [];
   let wins = 0;
   let losses = 0;
   let previousExposure = 0;
-  let feeAdjustedEquity = INITIAL_CAPITAL;
+  let feeAdjustedEquity = INITIAL_CASH;
+
+  // Prepare multi-symbol data if needed (e.g. for RotationMomentum)
+  const rotationComponents = bot.components.filter(c => c.id === 'ROTATION_MOMENTUM');
+  const allSymbolsData: Record<string, number[]> = {};
+  
+  if (rotationComponents.length > 0) {
+    const symbolsToFetch = new Set<string>();
+    symbolsToFetch.add(symbol); // Main symbol
+    rotationComponents.forEach(c => {
+      const universe = String(c.params.universe || '').split(',').map(s => s.trim()).filter(Boolean);
+      universe.forEach(s => symbolsToFetch.add(s));
+    });
+
+    for (const sym of symbolsToFetch) {
+      const symCloses = dataMode === 'historical'
+        ? (await fetchMarketData([sym], '2y', '1d', true)).data
+            .map((row) => row[sym])
+            .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+        : loadLocalMarketData(sym, period);
+      
+      if (symCloses.length > 0) {
+        allSymbolsData[sym] = symCloses;
+      }
+    }
+  }
 
   for (let i = 1; i < closes.length; i++) {
     const historySlice = closes.slice(0, i);
-    const actionScore = runtimeBot.processTick(historySlice);
+    
+    // Prepare slice for all symbols
+    const allSymbolsSlice: Record<string, number[]> = {};
+    if (Object.keys(allSymbolsData).length > 0) {
+      for (const sym in allSymbolsData) {
+        allSymbolsSlice[sym] = allSymbolsData[sym].slice(0, i);
+      }
+    }
+
+    const actionScore = runtimeBot.processTick(historySlice, allSymbolsSlice);
     const exposure = Math.max(0, actionScore); // long-only, 0..1 eksponering
     const assetReturn = (closes[i] - closes[i - 1]) / closes[i - 1];
     const strategyReturn = exposure * assetReturn;
@@ -146,7 +179,7 @@ const evaluateBotDNA = async (
   }
 
   const finalValue = equityCurve[equityCurve.length - 1];
-  const totalReturn = ((finalValue - INITIAL_CAPITAL) / INITIAL_CAPITAL) * 100;
+  const totalReturn = ((finalValue - INITIAL_CASH) / INITIAL_CASH) * 100;
   const marketReturn = ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100;
   const maxDrawdown = calculateMaxDrawdown(equityCurve);
   const sharpeRatio = calculateSharpeRatio(dailyReturns);

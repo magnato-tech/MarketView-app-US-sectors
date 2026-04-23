@@ -46,11 +46,13 @@ interface DashboardContextType {
     showSMA: boolean;
     smaWindow: number;
     showLiquidityFlow: boolean;
+    showPortfolio: boolean;
   };
   setAnalysisSettings: React.Dispatch<React.SetStateAction<{
     showSMA: boolean;
     smaWindow: number;
     showLiquidityFlow: boolean;
+    showPortfolio: boolean;
   }>>;
   // Detalj-kontekst for sidepanelet (erstatter selectedETFSymbol)
   detailContext: DetailContext | null;
@@ -80,7 +82,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
   const [analysisSettings, setAnalysisSettings] = useState({
     showSMA: true,
     smaWindow: 20,
-    showLiquidityFlow: false
+    showLiquidityFlow: false,
+    showPortfolio: false
   });
   
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {

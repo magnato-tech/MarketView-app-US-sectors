@@ -3,7 +3,7 @@ import { fetchMarketData } from './marketDataService';
 import { processBotLogic } from './quantEngineService';
 import { calculateMaxDrawdown, calculateSMA } from './analysisService';
 
-const TRANSACTION_FEE = 100;
+import { INITIAL_CASH, TRANSACTION_FEE } from '../constants/trading';
 
 /**
  * En lettvekts simuleringsmotor for raske optimaliseringskjøringer.
@@ -14,9 +14,9 @@ export const fastSimulate = (
   technicals: Record<string, { sma: (number | null)[], rsi: number[] }>,
   symbols: string[]
 ): number => {
-  let balance = 100000;
+  let balance = INITIAL_CASH;
   let positions: any[] = [];
-  const initialCapital = 100000;
+  const initialCapital = INITIAL_CASH;
 
   // Vi starter fra dag 50 for å ha SMA-data
   for (let i = 50; i < data.length; i++) {
@@ -169,7 +169,7 @@ export const runBacktest = async (
   // 3. Initialiser bot-tilstand
   let botState: BotState = {
     botId: config.id,
-    balance: 100000,
+    balance: INITIAL_CASH,
     positions: [],
     history: [],
     performance: { totalReturn: 0, dailyReturns: [], sharpeRatio: 0, maxDrawdown: 0 }
@@ -180,7 +180,7 @@ export const runBacktest = async (
   // Bruk ^GSPC som primær benchmark, SPY som fallback
   const actualBenchmark = !isNaN(data[startIndex][benchmarkSymbol] as number) ? benchmarkSymbol : 'SPY';
   const startMarketPrice = (data[startIndex][actualBenchmark] as number) || 1;
-  const initialCapital = 100000;
+  const initialCapital = INITIAL_CASH;
 
   // 4. Simuler dag-for-dag fra startIndex
   for (let i = startIndex; i < data.length; i++) {

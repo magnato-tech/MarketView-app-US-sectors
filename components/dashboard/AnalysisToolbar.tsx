@@ -13,7 +13,7 @@ import { InfoIcon } from '../ui/InfoIcon';
 export const AnalysisToolbar: React.FC = () => {
   const { analysisSettings, setAnalysisSettings } = useDashboard();
   const { t } = useLanguage();
-  const { showSMA, smaWindow, showLiquidityFlow } = analysisSettings;
+  const { showSMA, smaWindow, showLiquidityFlow, showPortfolio } = analysisSettings;
 
   const handleSmaClick = (w: number) => {
     if (smaWindow === w && showSMA) {
@@ -27,8 +27,30 @@ export const AnalysisToolbar: React.FC = () => {
     setAnalysisSettings(prev => ({ ...prev, showLiquidityFlow: !prev.showLiquidityFlow }));
   };
 
+  const togglePortfolio = () => {
+    setAnalysisSettings(prev => ({ ...prev, showPortfolio: !prev.showPortfolio }));
+  };
+
   return (
     <div className="flex items-center gap-2 bg-slate-950 dark:bg-slate-950 light:bg-slate-100 p-1 rounded-lg border border-slate-800 dark:border-slate-800 light:border-slate-200 overflow-x-auto max-w-full">
+      <button
+        type="button"
+        onClick={togglePortfolio}
+        className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+          showPortfolio
+            ? 'bg-amber-500 text-white'
+            : 'text-slate-400 dark:text-slate-400 light:text-slate-500 hover:text-slate-200 dark:hover:text-slate-200 light:hover:text-slate-900'
+        }`}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 7h-9" />
+          <path d="M14 17H5" />
+          <circle cx="17" cy="17" r="3" />
+          <circle cx="7" cy="7" r="3" />
+        </svg>
+        Min Portefølje
+      </button>
+      <div className="w-px h-3 bg-slate-800 dark:bg-slate-800 light:bg-slate-200 mx-0.5 shrink-0"></div>
       <button
         type="button"
         onClick={toggleLiquidityFlow}

@@ -23,41 +23,51 @@ export default defineConfig(({ mode }) => {
         {
           name: 'local-factory-api',
           configureServer(server) {
-            server.middlewares.use('/api/factory/run', async (req, res) => {
-              if (req.method !== 'POST') {
-                res.statusCode = 405;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ error: 'Method Not Allowed' }));
-                return;
-              }
+            const parseBody = async (req: any) => {
+              let body = '';
+              req.on('data', (chunk: any) => {
+                body += chunk.toString();
+              });
+              await new Promise<void>((resolve) => req.on('end', () => resolve()));
+              return body ? JSON.parse(body) : {};
+            };
 
+            const handleRoute = async (req: any, res: any, handlerPath: string) => {
               try {
-                let body = '';
-                req.on('data', (chunk) => {
-                  body += chunk.toString();
-                });
-                await new Promise<void>((resolve) => req.on('end', () => resolve()));
-                const parsed = body ? JSON.parse(body) : {};
+                const body = req.method === 'POST' || req.method === 'PATCH' ? await parseBody(req) : {};
+                
+                // Use Vite's ssrLoadModule to handle TypeScript and relative imports correctly
+                // We use a path relative to the config file which Vite handles best
+                const module = await server.ssrLoadModule(handlerPath);
+                const handler = module.default;
+                
+                const vercelRes = {
+                  status: (code: number) => {
+                    res.statusCode = code;
+                    return vercelRes;
+                  },
+                  json: (data: any) => {
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify(data));
+                  }
+                };
 
-                const module = await import('./lib/factory/EvolutionCycle.ts');
-                const result = await module.runFactoryEvolutionCycle({
-                  symbol: parsed.symbol,
-                  period: parsed.period,
-                });
-
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify(result));
+                await handler({ method: req.method, body }, vercelRes);
               } catch (error) {
                 res.statusCode = 500;
                 res.setHeader('Content-Type', 'application/json');
-                res.end(
-                  JSON.stringify({
-                    error: error instanceof Error ? error.message : 'Factory cycle failed',
-                  })
-                );
+                res.end(JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }));
               }
-            });
+            };
+
+            server.middlewares.use('/api/factory/run', (req, res) => handleRoute(req, res, './api/factory/run.ts'));
+            server.middlewares.use('/api/factory/components', (req, res) => handleRoute(req, res, './api/factory/components.ts'));
+            server.middlewares.use('/api/factory/drafts', (req, res) => handleRoute(req, res, './api/factory/drafts.ts'));
+            server.middlewares.use('/api/factory/published', (req, res) => handleRoute(req, res, './api/factory/published.ts'));
+            server.middlewares.use('/api/factory/publish', (req, res) => handleRoute(req, res, './api/factory/publish.ts'));
+            server.middlewares.use('/api/factory/deployments', (req, res) => handleRoute(req, res, './api/factory/deployments.ts'));
+            server.middlewares.use('/api/factory/clone-to-draft', (req, res) => handleRoute(req, res, './api/factory/clone-to-draft.ts'));
+            server.middlewares.use('/api/factory/send-to-factory', (req, res) => handleRoute(req, res, './api/factory/send-to-factory.ts'));
           },
         },
       ],

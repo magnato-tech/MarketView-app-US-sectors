@@ -1,6 +1,8 @@
 export interface ComponentContext {
   prices: number[];
   latestPrice: number;
+  allSymbolsData?: Record<string, number[]>; // For rotation/multi-symbol components
+  state?: Record<string, any>; // Persistent state for the component
 }
 
 export interface FactoryComponent {

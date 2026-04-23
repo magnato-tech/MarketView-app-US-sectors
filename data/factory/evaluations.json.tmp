@@ -1,0 +1,30 @@
+[
+  {
+    "id": "mob7fiup-u2ig0i",
+    "botId": "alpha-zero-genesis-baseline",
+    "createdAt": "2026-04-23T08:13:15.697Z",
+    "period": "1y",
+    "metrics": {
+      "totalReturn": 0,
+      "marketReturn": 0,
+      "maxDrawdown": 0,
+      "sharpeRatio": 0,
+      "winRate": 0,
+      "tradeCount": 0
+    }
+  },
+  {
+    "id": "mob7fl6g-wj2zd0",
+    "botId": "alpha-zero-genesis-baseline-challenger",
+    "createdAt": "2026-04-23T08:13:18.712Z",
+    "period": "1y",
+    "metrics": {
+      "totalReturn": 0,
+      "marketReturn": 0,
+      "maxDrawdown": 0,
+      "sharpeRatio": 0,
+      "winRate": 0,
+      "tradeCount": 0
+    }
+  }
+]

@@ -3,7 +3,7 @@ import { screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { MainLineChart } from '../../components/dashboard/MainLineChart';
 import { ChartTooltip } from '../../components/dashboard/ChartTooltip';
-import { renderWithLang } from './helpers';
+import { renderWithProviders } from './helpers';
 
 // Mock Recharts since it's hard to test SVG-based charts in JSDOM
 vi.mock('recharts', async () => {
@@ -15,7 +15,6 @@ vi.mock('recharts', async () => {
       <div 
         data-testid="line-chart" 
         onMouseDown={(e) => {
-          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           onMouseDown?.({ activeTooltipIndex: 0, chartX: 0, chartY: 0 });
         }}
         onMouseMove={(e) => {
@@ -50,14 +49,6 @@ vi.mock('recharts', async () => {
   };
 });
 
-// Mock DashboardContext
-vi.mock('../../contexts/DashboardContext', () => ({
-  useDashboard: () => ({
-    activeTab: 'dashboard',
-    setActiveTab: vi.fn(),
-  }),
-}));
-
 describe('MainLineChart - Drag to Select (Punkt 2)', () => {
   const mockData = [
     { timestamp: 'Jan 1', AAPL: 100, MSFT: 200 },
@@ -70,7 +61,7 @@ describe('MainLineChart - Drag to Select (Punkt 2)', () => {
 
   it('skal vise ReferenceArea når man drar i grafen', () => {
     const onTooltipContent = vi.fn(() => null);
-    renderWithLang(
+    renderWithProviders(
       <MainLineChart 
         data={mockData} 
         activeTickers={['AAPL']} 
@@ -92,7 +83,7 @@ describe('MainLineChart - Drag to Select (Punkt 2)', () => {
 
   it('skal vise "Nullstill valg" knapp etter at man har dratt ferdig', () => {
     const onTooltipContent = vi.fn(() => null);
-    renderWithLang(
+    renderWithProviders(
       <MainLineChart 
         data={mockData} 
         activeTickers={['AAPL']} 
@@ -111,7 +102,7 @@ describe('MainLineChart - Drag to Select (Punkt 2)', () => {
 
   it('skal fjerne markering når man klikker på "Nullstill valg"', () => {
     const onTooltipContent = vi.fn(() => null);
-    renderWithLang(
+    renderWithProviders(
       <MainLineChart 
         data={mockData} 
         activeTickers={['AAPL']} 
@@ -154,7 +145,7 @@ describe('ChartTooltip - Range Calculation (Punkt 2)', () => {
       { dataKey: 'AAPL', name: 'Apple', value: 40, color: '#ff0000' }
     ];
 
-    renderWithLang(
+    renderWithProviders(
       <ChartTooltip 
         active={true} 
         payload={payload} 

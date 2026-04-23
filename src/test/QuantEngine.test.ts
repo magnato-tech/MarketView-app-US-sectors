@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateStrategyScore, processBotLogic } from '../../services/quantEngineService';
 import { BotConfig, BotState, SummaryStats } from '../../types';
+import { INITIAL_CASH } from '../../constants/trading';
 
 describe('quantEngineService', () => {
   describe('calculateStrategyScore', () => {
@@ -68,7 +69,7 @@ describe('quantEngineService', () => {
 
     const initialState: BotState = {
       botId: 'test-bot',
-      balance: 100000,
+      balance: INITIAL_CASH,
       positions: [],
       history: [],
       performance: { totalReturn: 0, dailyReturns: [], sharpeRatio: 0, maxDrawdown: 0 }
@@ -90,7 +91,7 @@ describe('quantEngineService', () => {
       expect(trades[0].type).toBe('SELL');
       expect(trades[0].reason).toContain('VIX');
       expect(newState.positions.length).toBe(0);
-      expect(newState.balance).toBe(100000 + (10 * 105));
+      expect(newState.balance).toBe(INITIAL_CASH + (10 * 105));
     });
 
     it('should trigger Stop-loss exit when price drops', () => {

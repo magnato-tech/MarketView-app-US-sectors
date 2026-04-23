@@ -5,7 +5,7 @@ import { runFactoryEvolutionCycle } from '../../lib/factory/EvolutionCycle';
 import { OllamaClient } from '../../lib/factory/ollama/OllamaClient';
 
 describe('Factory end-to-end (A-Å)', () => {
-  const symbol = 'XLK';
+  const symbol = 'GDX';
   const period = '1y' as const;
   const testRoot = path.join(process.cwd(), 'data', 'factory-test-e2e');
   const marketDataDir = path.join(process.cwd(), 'data', 'factory', 'market-data');
@@ -31,9 +31,9 @@ describe('Factory end-to-end (A-Å)', () => {
   it('runs full evolution cycle and produces baseline + challenger metrics', async () => {
     vi.spyOn(OllamaClient.prototype, 'generateMutation').mockResolvedValue({
       reasoning: 'test reasoning for mutation',
-      proposals: [{ componentId: 'TREND_SMA', paramKey: 'fastPeriod', value: 22 }],
+      proposals: [{ componentId: 'ROTATION_MOMENTUM', paramKey: 'lookbackPeriod', value: 15 }],
       rawText:
-        '{"reasoning":"test reasoning for mutation","patch":[{"componentId":"TREND_SMA","paramKey":"fastPeriod","value":22}]}',
+        '{"reasoning":"test reasoning for mutation","patch":[{"componentId":"ROTATION_MOMENTUM","paramKey":"lookbackPeriod","value":15}]}',
     });
 
     const result = await runFactoryEvolutionCycle({
