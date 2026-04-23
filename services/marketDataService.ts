@@ -34,12 +34,77 @@ interface CacheEntry {
   timestamp: number;
 }
 
+interface FileCachePayload {
+  fetchedAtDate: string;
+  response: YahooChartResponse;
+}
+
 const cache: Map<string, CacheEntry> = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutter
 const MAX_CACHE_SIZE = 100; // Begrens antall instrumenter i minnet
 
 const getCacheKey = (symbol: string, range: string, interval: string) => 
   `${symbol}:${range}:${interval}`;
+
+const isNodeRuntime = (): boolean =>
+  typeof window === 'undefined';
+
+const toCacheDateKey = (date = new Date()): string =>
+  date.toISOString().slice(0, 10);
+
+const getYahooChartUrl = (symbol: string, interval: string, range: string): string => {
+  const encoded = encodeURIComponent(symbol);
+  if (isNodeRuntime()) {
+    return `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}?interval=${interval}&range=${range}`;
+  }
+  return `/api/yahoo/v8/finance/chart/${encoded}?interval=${interval}&range=${range}`;
+};
+
+const getFileCachePath = async (symbol: string, range: string, interval: string): Promise<string> => {
+  const pathModule = await import('node:path');
+  return pathModule.join(process.cwd(), 'data', 'cache', `yahoo_${symbol}_${range}_${interval}.json`);
+};
+
+const readDailyFileCache = async (
+  symbol: string,
+  range: string,
+  interval: string
+): Promise<YahooChartResponse | null> => {
+  if (!isNodeRuntime()) return null;
+  try {
+    const fs = await import('node:fs/promises');
+    const filePath = await getFileCachePath(symbol, range, interval);
+    const raw = await fs.readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(raw) as FileCachePayload;
+    if (parsed.fetchedAtDate !== toCacheDateKey()) return null;
+    return parsed.response;
+  } catch {
+    return null;
+  }
+};
+
+const writeDailyFileCache = async (
+  symbol: string,
+  range: string,
+  interval: string,
+  response: YahooChartResponse
+): Promise<void> => {
+  if (!isNodeRuntime()) return;
+  try {
+    const fs = await import('node:fs/promises');
+    const pathModule = await import('node:path');
+    const cacheDir = pathModule.join(process.cwd(), 'data', 'cache');
+    await fs.mkdir(cacheDir, { recursive: true });
+    const filePath = await getFileCachePath(symbol, range, interval);
+    const payload: FileCachePayload = {
+      fetchedAtDate: toCacheDateKey(),
+      response,
+    };
+    await fs.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf-8');
+  } catch {
+    // Best effort cache; ignore write failures.
+  }
+};
 
 const purgeOldCache = () => {
   if (cache.size <= MAX_CACHE_SIZE) return;
@@ -85,13 +150,19 @@ export const fetchMarketData = async (
         return;
       }
 
-      const path = `/api/yahoo/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${intv}&range=${range}`;
       try {
-        const res = await fetch(path);
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const json = await res.json() as YahooChartResponse;
+        const cachedResponse = await readDailyFileCache(symbol, range, intv);
+        const json = cachedResponse ?? await (async () => {
+          const url = getYahooChartUrl(symbol, intv, range);
+          const res = await fetch(url);
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          const responseJson = await res.json() as YahooChartResponse;
+          await writeDailyFileCache(symbol, range, intv, responseJson);
+          return responseJson;
+        })();
+
         const series = parseChartJson(json);
         if (series) {
           const r = json.chart?.result?.[0];

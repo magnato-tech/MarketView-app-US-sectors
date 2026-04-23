@@ -1,7 +1,9 @@
 import { BotConfig, BotState, MarketDataPoint, SummaryStats, Trade, Period } from '../types';
 import { fetchMarketData } from './marketDataService';
 import { processBotLogic } from './quantEngineService';
-import { calculateSMA } from './analysisService';
+import { calculateMaxDrawdown, calculateSMA } from './analysisService';
+
+const TRANSACTION_FEE = 100;
 
 /**
  * En lettvekts simuleringsmotor for raske optimaliseringskjøringer.
@@ -47,6 +49,9 @@ export const fastSimulate = (
 
     const result = processBotLogic(config, botState, dailySummary, vixValue);
     balance = result.newState.balance;
+    if (result.trades.length > 0) {
+      balance -= result.trades.length * TRANSACTION_FEE;
+    }
     positions = result.newState.positions;
   }
 
@@ -87,6 +92,32 @@ const calculateRSI = (prices: number[], period: number = 14): number => {
   if (losses === 0) return 100;
   let rs = gains / losses;
   return 100 - (100 / (1 + rs));
+};
+
+const calculateSharpeRatioFromCurve = (
+  equityCurve: { timestamp: string; botValue: number; marketValue: number }[],
+  annualRiskFreeRate = 0.02
+): number => {
+  if (equityCurve.length < 2) return 0;
+
+  const dailyRiskFreeRate = annualRiskFreeRate / 252;
+  const returns: number[] = [];
+  for (let i = 1; i < equityCurve.length; i++) {
+    const prev = equityCurve[i - 1].botValue;
+    const curr = equityCurve[i].botValue;
+    if (prev > 0 && Number.isFinite(prev) && Number.isFinite(curr)) {
+      returns.push((curr - prev) / prev);
+    }
+  }
+
+  if (returns.length < 2) return 0;
+  const avg = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+  const variance = returns.reduce((sum, r) => sum + Math.pow(r - avg, 2), 0) / (returns.length - 1);
+  const stdDev = Math.sqrt(variance);
+  if (!Number.isFinite(stdDev) || stdDev === 0) return 0;
+
+  const sharpe = ((avg - dailyRiskFreeRate) / stdDev) * Math.sqrt(252);
+  return Number.isFinite(sharpe) ? sharpe : 0;
 };
 
 export const runBacktest = async (
@@ -177,6 +208,12 @@ export const runBacktest = async (
 
     const result = processBotLogic(config, botState, dailySummary, vixValue);
     botState = result.newState;
+    if (result.trades.length > 0) {
+      botState = {
+        ...botState,
+        balance: botState.balance - result.trades.length * TRANSACTION_FEE,
+      };
+    }
 
     const positionsValue = botState.positions.reduce((acc, pos) => {
       const currentPrice = (dayData[pos.symbol] as number) || pos.averagePrice;
@@ -203,6 +240,8 @@ export const runBacktest = async (
   const finalMarketValue = equityCurve[equityCurve.length - 1].marketValue;
   const totalReturn = ((finalBotValue - initialCapital) / initialCapital) * 100;
   const marketReturn = ((finalMarketValue - initialCapital) / initialCapital) * 100;
+  const maxDrawdown = calculateMaxDrawdown(equityCurve.map(point => point.botValue));
+  const sharpeRatio = calculateSharpeRatioFromCurve(equityCurve);
   const sellTrades = botState.history.filter(t => t.type === 'SELL');
   const winningTrades = sellTrades.filter(t => !t.reason.includes('Stop-loss'));
 
@@ -214,10 +253,10 @@ export const runBacktest = async (
     summary: {
       totalReturn,
       marketReturn,
-      maxDrawdown: 15.0,
+      maxDrawdown,
       winRate: sellTrades.length > 0 ? (winningTrades.length / sellTrades.length) * 100 : 0,
       tradeCount: botState.history.length,
-      sharpeRatio: 1.5
+      sharpeRatio
     },
     trades: botState.history
   };
