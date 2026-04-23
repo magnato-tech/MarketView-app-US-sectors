@@ -1,4 +1,4 @@
-import { LocalFileBotRepository } from '../../services/factory/repositories/LocalFileBotRepository';
+import { getRepository } from '../../services/factory/repositories/RepositoryFactory';
 import { Deployment } from '../../types/simulation';
 import { simulateDeployment } from '../../lib/factory/DeploymentSimulator';
 
@@ -12,6 +12,8 @@ type VercelLikeRequest = {
     status?: 'Active' | 'Paused' | 'Stopped';
     symbol?: string;
     benchmarkSymbol?: string;
+    allocatedPct?: number;
+    isLocked?: boolean;
   };
 };
 
@@ -24,7 +26,7 @@ const createDeploymentId = (): string =>
   `dep-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 export default async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
-  const repository = new LocalFileBotRepository();
+  const repository = getRepository();
 
   if (req.method === 'GET') {
     try {

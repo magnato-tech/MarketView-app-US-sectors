@@ -10,6 +10,7 @@ import { BotCreationWizard } from './BotCreationWizard';
 import { findOptimalStopLoss } from '../services/analysisService';
 import { BotState } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PortfolioStats } from './dashboard/PortfolioStats';
 import { INITIAL_CASH, SANITY_CAP_NOK } from '../constants/trading';
 
 export const PortfolioView: React.FC = () => {
@@ -242,6 +243,14 @@ export const PortfolioView: React.FC = () => {
 
       {viewMode === 'overview' ? (
         <>
+          <PortfolioStats 
+            totalValue={totalValue}
+            availableCapital={availableCapital}
+            totalAllocatedToBots={totalAllocatedToBots}
+            totalReturn={totalReturn}
+            isPositive={isPositive}
+          />
+
           {/* Portfolio Performance Chart */}
           <Card className="p-6 border-slate-800/60 bg-slate-900/20 backdrop-blur-md rounded-2xl">
             <div className="flex items-center justify-between mb-6">
@@ -251,10 +260,6 @@ export const PortfolioView: React.FC = () => {
                   Total Formueutvikling
                 </h3>
                 <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Kombinert verdi av cash, botter og manuelle posisjoner</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Verdi</p>
-                <p className="text-xl font-mono font-black text-white">NOK {totalValue.toLocaleString()}</p>
               </div>
             </div>
             
@@ -309,51 +314,6 @@ export const PortfolioView: React.FC = () => {
               )}
             </div>
           </Card>
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="p-6 bg-slate-900/40 border-slate-800/50 backdrop-blur-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <Wallet className="w-24 h-24 text-blue-500" />
-              </div>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tilgjengelig Kapital</p>
-              <p className="text-3xl font-mono font-black text-white">NOK {availableCapital.toLocaleString()}</p>
-              <div className="mt-4 flex items-center gap-2">
-                <div className="h-1.5 flex-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500" style={{ width: `${totalValue > 0 ? (availableCapital / totalValue) * 100 : 100}%` }} />
-                </div>
-                <span className="text-[10px] font-mono text-slate-500">NOK {availableCapital.toLocaleString()}</span>
-              </div>
-            </Card>
-
-            <Card className="p-6 bg-slate-900/40 border-slate-800/50 backdrop-blur-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <BarChart3 className="w-24 h-24 text-purple-500" />
-              </div>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Total Verdi</p>
-              <p className="text-3xl font-mono font-black text-white">NOK {totalValue.toLocaleString()}</p>
-              <div className="mt-4 flex items-center gap-2">
-                <div className="h-1.5 flex-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-purple-500" style={{ width: `100%` }} />
-                </div>
-                <span className="text-[10px] font-mono text-slate-500">NOK {totalValue.toLocaleString()}</span>
-              </div>
-            </Card>
-
-            <Card className="p-6 bg-slate-900/40 border-slate-800/50 backdrop-blur-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                {isPositive ? <TrendingUp className="w-24 h-24 text-emerald-500" /> : <TrendingDown className="w-24 h-24 text-rose-500" />}
-              </div>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('portfolio.totalReturn')}</p>
-              <p className={`text-3xl font-mono font-black ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {isPositive ? '+' : ''}{totalReturn.toFixed(2)}%
-              </p>
-              <div className="mt-4 flex items-center gap-2">
-                <div className={`h-1.5 flex-1 rounded-full overflow-hidden bg-slate-800`}>
-                  <div className={`h-full ${isPositive ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(100, Math.abs(totalReturn) * 5)}%` }} />
-                </div>
-              </div>
-            </Card>
-          </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             {/* Positions Table */}

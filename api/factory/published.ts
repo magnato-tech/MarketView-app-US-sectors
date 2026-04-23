@@ -1,4 +1,4 @@
-import { LocalFileBotRepository } from '../../services/factory/repositories/LocalFileBotRepository';
+import { getRepository } from '../../services/factory/repositories/RepositoryFactory';
 
 type VercelLikeRequest = {
   method?: string;
@@ -16,7 +16,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
   }
 
   try {
-    const repository = new LocalFileBotRepository();
+    const repository = getRepository();
     const bots = await repository.listPublishedBots();
     res.status(200).json({ bots });
   } catch (error) {

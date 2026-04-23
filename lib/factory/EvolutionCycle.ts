@@ -1,4 +1,4 @@
-import { LocalFileBotRepository } from '../../services/factory/repositories/LocalFileBotRepository';
+import { getRepository } from '../../services/factory/repositories/RepositoryFactory';
 import { BotDNA } from '../../types/bot-dna';
 import { EvaluationSnapshot } from '../../types/simulation';
 import {
@@ -107,7 +107,7 @@ const toBotEvaluationResult = (snapshot: EvaluationSnapshot, botId: string): Bot
 });
 
 const getLatestEvaluation = async (
-  repository: LocalFileBotRepository,
+  repository: any,
   botId: string
 ): Promise<EvaluationSnapshot | null> => {
   const evaluations = await repository.listEvaluations(botId);
@@ -155,7 +155,7 @@ const classifyOllamaError = (error: unknown): string => {
 };
 
 const generateProposalWithFallback = async (
-  repository: LocalFileBotRepository,
+  repository: any,
   rules: RuleDefinition[],
   sourceBotId: string,
   statuses: string[]
@@ -265,7 +265,8 @@ export const runFactoryEvolutionCycle = async (
     ((process.env.FACTORY_DATA_MODE || 'historical').toLowerCase() === 'simulator'
       ? 'simulator'
       : 'historical');
-  const repository = new LocalFileBotRepository(request.repositoryDir);
+  
+  const repository = getRepository(request.repositoryDir);
   statuses.push(`Data mode: ${dataMode}.`);
 
   statuses.push('Ensuring Genesis bot exists...');

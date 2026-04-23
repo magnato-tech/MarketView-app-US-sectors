@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTrading } from '../contexts/TradingContext';
 import { useDashboard } from '../contexts/DashboardContext';
 import { Card } from './ui/Card';
-import { Settings, Play, Pause, RefreshCw, Zap, ShieldAlert, BarChart3, Info, Activity, Lock, Unlock } from 'lucide-react';
+import { Settings, Play, Pause, RefreshCw, Zap, ShieldAlert, BarChart3, Info, Activity, Lock, Unlock, Cpu, BrainCircuit } from 'lucide-react';
 import { BotConfig, BotState } from '../types';
 import { BacktestResultModal } from './BacktestResultModal';
 import { optimizeBotConfig } from '../services/optimizationService';
@@ -51,7 +51,7 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
     }
   };
 
-  const handleOptimize = async () => {
+  const handleOptimize = async (useAI = false) => {
     setIsOptimizing(true);
     setOptProgress(0);
     try {
@@ -67,7 +67,8 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
           smaRange: [10, 20, 50, 100, 200],
           momentumRange: [5, 10, 14, 21, 30, 60],
           weightStep: 0.1,
-          lockedParams
+          lockedParams,
+          useAI
         },
         (p) => setOptProgress(p)
       );
@@ -267,13 +268,24 @@ export const BotConfigurationCard: React.FC<BotCardProps> = ({ config, state }) 
             >
               Lagre Manuelt
             </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <button 
-              onClick={handleOptimize}
+              onClick={() => handleOptimize(false)}
+              disabled={isOptimizing}
+              className="py-2.5 bg-slate-800/50 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-700"
+            >
+              {isOptimizing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Cpu className="w-3 h-3" />}
+              Brute Force
+            </button>
+            <button 
+              onClick={() => handleOptimize(true)}
               disabled={isOptimizing}
               className="py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
             >
-              {isOptimizing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Cpu className="w-3 h-3" />}
-              Optimaliser Bot
+              {isOptimizing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <BrainCircuit className="w-3 h-3" />}
+              AI Optimaliser
             </button>
           </div>
         </div>

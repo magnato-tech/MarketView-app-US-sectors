@@ -1,4 +1,4 @@
-import { LocalFileBotRepository } from '../../services/factory/repositories/LocalFileBotRepository';
+import { getRepository } from '../../services/factory/repositories/RepositoryFactory';
 import { BotDNA, BotDNAComponent } from '../../types/bot-dna';
 
 type VercelLikeRequest = {
@@ -17,7 +17,7 @@ type VercelLikeResponse = {
 };
 
 export default async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
-  const repository = new LocalFileBotRepository();
+  const repository = getRepository();
 
   if (req.method === 'GET') {
     const bots = await repository.listBots();
