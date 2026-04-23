@@ -53,11 +53,11 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 describe('Chart & Drilldown Integration', () => {
   it('shows multiple sectors in chart when checked in sidebar', () => {
     const IntegrationTest = () => {
-      const { activeTickers } = useDashboard();
+      const { selectedTickers } = useDashboard();
       return (
         <div className="flex">
           <Sidebar />
-          <SimpleLineChart activeTickers={activeTickers} />
+          <SimpleLineChart activeTickers={selectedTickers} />
         </div>
       );
     };
@@ -74,11 +74,11 @@ describe('Chart & Drilldown Integration', () => {
 
   it('switches to drilldown mode and shows child ETFs in chart', () => {
     const IntegrationTest = () => {
-      const { activeTickers, drilldownSector, activeDrilldownTickers, toggleDrilldownTicker, summary } = useDashboard();
+      const { selectedTickers, drilldownSector, activeDrilldownTickers, toggleDrilldownTicker, summary } = useDashboard();
       return (
         <div>
           <Sidebar />
-          <SimpleLineChart activeTickers={activeTickers} />
+          <SimpleLineChart activeTickers={selectedTickers} />
           {drilldownSector && (
             <MarketSummaryTable 
               title="Drilldown"
