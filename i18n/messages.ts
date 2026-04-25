@@ -49,6 +49,10 @@ const no = {
   },
   dashboard: {
     loadingMarketData: 'Analyserer Markedsdata...',
+    fetchErrorTitle: 'Kunne ikke hente markedsdata',
+    fetchErrorHint: 'Sjekk nettverk, at utviklingsserver kjører (Vite), og at Yahoo-proxy er tilgjengelig. Prøv igjen.',
+    emptyAfterLoadTitle: 'Ingen data å vise',
+    emptyAfterLoadHint: 'Velg instrumenter i sidefeltet eller trykk «Prøv igjen».',
     tabs: {
       dashboard: 'Dashboard',
       portfolio: 'Portefølje',
@@ -95,6 +99,19 @@ const no = {
   leaderboard: {
     winnerLast: 'Vinner siste {period}',
     totalReturn: 'Total avkastning',
+    subWinner: {
+      badge: 'Sterkest ETF i sektoren',
+      context: 'Samme periode som over · innen {sector}',
+    },
+    subWinnerHoldings: {
+      badge: 'Sterkest blant tyngst vektede posisjoner i ETF-en',
+      context: 'Samme periode · topp 2 etter avkastning blant de {n} største vektene',
+      loading: 'Henter …',
+      error: 'Kunne ikke hente data',
+      siblingBadge: 'Sterkest blant andre ETF-er i sektoren',
+      siblingContext: 'Samme periode · øvrige fond under {sector} (ikke enkeltaksjer i dette fondet)',
+      nonEquityHint: 'Dette fondet har ingen aksjebeholdningsliste her, og ingen andre ETF-er i sektoren er tilgjengelige i oversikten.',
+    },
       momentumLeaders: 'Periodens vinnere',
       meanReversion: 'Periodens tapere',
       metrics: {
@@ -136,6 +153,11 @@ const no = {
     exit: 'Avslutt drilldown',
     noSiblings: 'kun moder-ETF',
     siblingsCount: '{n} avkryssede aksjer',
+  },
+  sectorDrilldown: {
+    badge: 'Sektor-fokus',
+    exit: 'Tilbake til oversikt',
+    hint: 'Grafen følger avkryssingene i tabellen under. Velg en annen sektor i sidefeltet for å sammenligne kun de to sektorene (drilldown avsluttes).',
   },
   aiInsight: {
     titlePrefix: 'Vår',
@@ -296,6 +318,10 @@ const en: MessageTree = {
   },
   dashboard: {
     loadingMarketData: 'Analyzing market data...',
+    fetchErrorTitle: 'Could not load market data',
+    fetchErrorHint: 'Check your network, that the dev server is running (Vite), and that the Yahoo proxy is reachable. Try again.',
+    emptyAfterLoadTitle: 'Nothing to show',
+    emptyAfterLoadHint: 'Pick symbols in the sidebar or press Retry.',
     tabs: {
       dashboard: 'Dashboard',
       portfolio: 'Portfolio',
@@ -342,6 +368,19 @@ const en: MessageTree = {
   leaderboard: {
     winnerLast: 'Top performer last {period}',
     totalReturn: 'Total return',
+    subWinner: {
+      badge: 'Strongest ETF in this sector',
+      context: 'Same period as above · within {sector}',
+    },
+    subWinnerHoldings: {
+      badge: 'Strongest among the ETF’s heaviest-weight positions',
+      context: 'Same period · top 2 by return among the {n} largest weights',
+      loading: 'Loading…',
+      error: 'Could not load data',
+      siblingBadge: 'Strongest other ETFs in this sector',
+      siblingContext: 'Same period · other funds under {sector} (this fund has no single-stock holdings here)',
+      nonEquityHint: 'This fund has no stock holdings list here, and no other sector ETFs are available in the summary.',
+    },
       momentumLeaders: "Period's winners",
       meanReversion: "Period's losers",
       metrics: {
@@ -383,6 +422,11 @@ const en: MessageTree = {
     exit: 'Exit drilldown',
     noSiblings: 'parent ETF only',
     siblingsCount: '{n} sibling stocks selected',
+  },
+  sectorDrilldown: {
+    badge: 'Sector focus',
+    exit: 'Back to overview',
+    hint: 'The chart follows the table checkboxes. Pick another sector in the sidebar to compare just those two (drilldown ends).',
   },
   aiInsight: {
     titlePrefix: 'Our',

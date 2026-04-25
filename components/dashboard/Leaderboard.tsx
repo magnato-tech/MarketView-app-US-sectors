@@ -1,8 +1,16 @@
-import React, { useMemo } from 'react';
-import { useDashboard } from '../../contexts/DashboardContext';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getStrongTrendColorClass } from '../../utils/formatters';
-import type { DerivedMetrics } from '../../services/analysisService';
+import type { DerivedMetrics, RangeSummaryRow } from '../../services/analysisService';
+import type { Interval, Period, SummaryStats } from '../../types';
+import { TICKERS } from '../../constants';
+import { fetchMarketData } from '../../services/marketDataService';
+import {
+  getEtfHoldings,
+  getHoldingName,
+  getTopHoldingSymbolsByWeight,
+  hasETFDetails,
+} from '../../services/etfService';
 
 type LeaderboardRow = {
   symbol: string;
@@ -11,6 +19,14 @@ type LeaderboardRow = {
   color: string;
   metrics: DerivedMetrics;
 };
+
+type HoldingSpotlightRow = {
+  symbol: string;
+  name: string;
+  changePct: number;
+};
+
+const HOLDINGS_FETCH_CAP = 14;
 
 const emptyMetrics = (): DerivedMetrics => ({
   rank: 0,
@@ -23,8 +39,27 @@ const emptyMetrics = (): DerivedMetrics => ({
   flowScore: 0,
 });
 
-export const Leaderboard: React.FC = () => {
-  const { summary, rangeSummary, loading, period, allSectorsSummary } = useDashboard();
+const SECTOR_SYMBOL_SET = new Set(TICKERS.filter(t => t.category === 'Sector').map(t => t.symbol));
+
+export type LeaderboardProps = {
+  summary: SummaryStats[];
+  rangeSummary: RangeSummaryRow[];
+  loading: boolean;
+  period: Period;
+  interval: Interval;
+  allSectorsSummary: SummaryStats[];
+  isDarkMode: boolean;
+};
+
+export const Leaderboard: React.FC<LeaderboardProps> = ({
+  summary,
+  rangeSummary,
+  loading,
+  period,
+  interval,
+  allSectorsSummary,
+  isDarkMode,
+}) => {
   const { t } = useLanguage();
 
   const universeRows = useMemo((): LeaderboardRow[] => {
@@ -55,6 +90,79 @@ export const Leaderboard: React.FC = () => {
     }));
   }, [allSectorsSummary, rangeSummary, summary]);
 
+  const sectorRows = useMemo(
+    () => universeRows.filter(r => SECTOR_SYMBOL_SET.has(r.symbol)),
+    [universeRows]
+  );
+
+  const sortedSectors = useMemo(
+    () => [...sectorRows].sort((a, b) => b.changePct - a.changePct),
+    [sectorRows]
+  );
+
+  const topEtfUnderSectorWinner = useMemo(() => {
+    const winner = sortedSectors[0];
+    if (!winner) return null;
+    const childSyms = new Set(
+      TICKERS.filter(t => t.category === 'ETF' && t.parentSymbol === winner.symbol).map(t => t.symbol)
+    );
+    if (childSyms.size === 0) return null;
+    const childRows = universeRows.filter(r => childSyms.has(r.symbol));
+    if (childRows.length === 0) return null;
+    return [...childRows].sort((a, b) => b.changePct - a.changePct)[0];
+  }, [sortedSectors, universeRows]);
+
+  /** Når vinner-ETF mangler aksjebeholdninger (f.eks. USO), fullfør pyramiden med de to sterkeste søsken-ETF-ene under samme sektor. */
+  const topSiblingEtfRows = useMemo((): LeaderboardRow[] => {
+    const w = sortedSectors[0];
+    const topEtf = topEtfUnderSectorWinner;
+    if (!w || !topEtf) return [];
+    const siblingSyms = TICKERS.filter(
+      t => t.category === 'ETF' && t.parentSymbol === w.symbol && t.symbol !== topEtf.symbol
+    ).map(t => t.symbol);
+    if (siblingSyms.length === 0) return [];
+    const rows = universeRows.filter(r => siblingSyms.includes(r.symbol));
+    return [...rows].sort((a, b) => b.changePct - a.changePct).slice(0, 2);
+  }, [sortedSectors, topEtfUnderSectorWinner, universeRows]);
+
+  const [holdingSpotlight, setHoldingSpotlight] = useState<{
+    loading: boolean;
+    error: boolean;
+    rows: HoldingSpotlightRow[];
+  }>({ loading: false, error: false, rows: [] });
+
+  useEffect(() => {
+    const etfSym = topEtfUnderSectorWinner?.symbol;
+    if (!etfSym || !hasETFDetails(etfSym)) {
+      setHoldingSpotlight({ loading: false, error: false, rows: [] });
+      return;
+    }
+    const symbols = getTopHoldingSymbolsByWeight(etfSym, HOLDINGS_FETCH_CAP);
+    if (symbols.length === 0) {
+      setHoldingSpotlight({ loading: false, error: false, rows: [] });
+      return;
+    }
+    let cancelled = false;
+    setHoldingSpotlight({ loading: true, error: false, rows: [] });
+    fetchMarketData(symbols, period, interval)
+      .then(({ summary: fetched }) => {
+        if (cancelled) return;
+        const sorted = [...fetched].sort((a, b) => b.percentChange - a.percentChange);
+        const top2 = sorted.slice(0, 2).map(s => ({
+          symbol: s.symbol,
+          name: getHoldingName(s.symbol) || s.name,
+          changePct: s.percentChange,
+        }));
+        setHoldingSpotlight({ loading: false, error: false, rows: top2 });
+      })
+      .catch(() => {
+        if (!cancelled) setHoldingSpotlight({ loading: false, error: true, rows: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [topEtfUnderSectorWinner?.symbol, period, interval]);
+
   if (loading && summary.length === 0) {
     return (
       <div className="bg-slate-900 dark:bg-slate-900 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 animate-pulse">
@@ -81,11 +189,8 @@ export const Leaderboard: React.FC = () => {
     );
   }
 
-  const data = universeRows;
-
-  const sorted = [...data].sort((a, b) => b.changePct - a.changePct);
-  const top5 = sorted.slice(0, 5);
-  const bottom5 = [...sorted].reverse().slice(0, 5);
+  const top5 = sortedSectors.slice(0, 5);
+  const bottom5 = [...sortedSectors].reverse().slice(0, 5);
 
   const MetricBadge = ({ label, value, colorClass }: { label: string, value: string | number, colorClass?: string }) => (
     <div className="flex flex-col items-center px-1 py-1.5 rounded bg-slate-950/40 border border-white/10 shadow-inner min-w-0">
@@ -94,38 +199,182 @@ export const Leaderboard: React.FC = () => {
     </div>
   );
 
+  const winner = sortedSectors[0];
+  const etfSym = topEtfUnderSectorWinner?.symbol;
+  const hasStockHoldings = Boolean(etfSym && getEtfHoldings(etfSym).length > 0);
+
   return (
     <div className="space-y-6">
-      {/* Vinner-kort */}
-      <div className="bg-gradient-to-br from-blue-700 to-indigo-800 border border-blue-400/30 rounded-2xl p-6 shadow-2xl shrink-0">
-        <div className="flex justify-between items-start mb-5">
-          <div>
-            <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.2em]">
-              {t('leaderboard.winnerLast', { period })}
-            </span>
-            <h3 className="text-2xl font-black text-white mt-1 tracking-tight">{sorted[0]?.name}</h3>
-            <div className="flex items-center gap-2 mt-2">
-              <div className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.5)]" style={{ backgroundColor: sorted[0]?.color }}></div>
-              <span className="text-xs text-blue-100 font-bold font-mono tracking-wider">{sorted[0]?.symbol}</span>
+      <div className="space-y-3">
+        {/* Vinner-kort (kun hoved-/innsatssektorer) */}
+        <div className="bg-gradient-to-br from-blue-700 to-indigo-800 border border-blue-400/30 rounded-2xl p-6 shadow-2xl shrink-0">
+          <div className="flex justify-between items-start mb-5">
+            <div>
+              <span className="text-[10px] font-black text-blue-200 uppercase tracking-[0.2em]">
+                {t('leaderboard.winnerLast', { period })}
+              </span>
+              <h3 className="text-2xl font-black text-white mt-1 tracking-tight">{winner?.name}</h3>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.5)]" style={{ backgroundColor: winner?.color }}></div>
+                <span className="text-xs text-blue-100 font-bold font-mono tracking-wider">{winner?.symbol}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={`text-3xl font-black font-mono leading-none drop-shadow-md ${(winner?.changePct ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {(winner?.changePct ?? 0) > 0 ? '+' : ''}{winner?.changePct}%
+              </div>
+              <div className="text-[9px] text-blue-200 font-black uppercase mt-2 tracking-widest opacity-80">{t('leaderboard.totalReturn')}</div>
             </div>
           </div>
-          <div className="text-right">
-            <div className={`text-3xl font-black font-mono leading-none drop-shadow-md ${sorted[0]?.changePct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {sorted[0]?.changePct > 0 ? '+' : ''}{sorted[0]?.changePct}%
-            </div>
-            <div className="text-[9px] text-blue-200 font-black uppercase mt-2 tracking-widest opacity-80">{t('leaderboard.totalReturn')}</div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <MetricBadge
+              label={t('leaderboard.metrics.relStrength')}
+              value={`${(winner?.metrics?.relativeStrength ?? 0) > 0 ? '+' : ''}${winner?.metrics?.relativeStrength ?? 0}%`}
+              colorClass={(winner?.metrics?.relativeStrength ?? 0) > 0 ? 'text-emerald-400' : 'text-rose-300'}
+            />
+            <MetricBadge label={t('leaderboard.metrics.volatility')} value={`${winner?.metrics?.volatility ?? 0}%`} colorClass="text-blue-100" />
+            <MetricBadge label={t('leaderboard.metrics.maxDrawdown')} value={`${winner?.metrics?.maxDrawdown ?? 0}%`} colorClass="text-rose-300" />
           </div>
         </div>
-        
-        <div className="grid grid-cols-3 gap-2">
-          <MetricBadge 
-            label={t('leaderboard.metrics.relStrength')}
-            value={`${(sorted[0]?.metrics?.relativeStrength ?? 0) > 0 ? '+' : ''}${sorted[0]?.metrics?.relativeStrength ?? 0}%`} 
-            colorClass={(sorted[0]?.metrics?.relativeStrength ?? 0) > 0 ? 'text-emerald-400' : 'text-rose-300'} 
-          />
-          <MetricBadge label={t('leaderboard.metrics.volatility')} value={`${sorted[0]?.metrics?.volatility ?? 0}%`} colorClass="text-blue-100" />
-          <MetricBadge label={t('leaderboard.metrics.maxDrawdown')} value={`${sorted[0]?.metrics?.maxDrawdown ?? 0}%`} colorClass="text-rose-300" />
-        </div>
+
+        {topEtfUnderSectorWinner && winner && (
+          <div
+            className={`rounded-xl border-l-4 border-blue-500/80 pl-4 pr-3 py-3 shadow-inner ${
+              isDarkMode
+                ? 'bg-slate-900/90 border border-slate-800 border-l-blue-500'
+                : 'bg-slate-50 border border-slate-200 border-l-blue-500'
+            }`}
+          >
+            <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 mb-1">
+              {t('leaderboard.subWinner.badge')}
+            </p>
+            <p className={`text-[11px] font-semibold mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              {t('leaderboard.subWinner.context', { sector: winner.name })}
+            </p>
+            <div className="flex justify-between items-center gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-bold dark:text-slate-100 light:text-slate-800 truncate">
+                  {topEtfUnderSectorWinner.name}
+                </div>
+                <span className="text-[10px] font-mono text-slate-500">{topEtfUnderSectorWinner.symbol}</span>
+              </div>
+              <span className={`text-lg font-black font-mono shrink-0 ${getStrongTrendColorClass(topEtfUnderSectorWinner.changePct)}`}>
+                {topEtfUnderSectorWinner.changePct > 0 ? '+' : ''}
+                {topEtfUnderSectorWinner.changePct}%
+              </span>
+            </div>
+
+            <div
+              className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}
+            >
+              {hasStockHoldings ? (
+                <>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/90 mb-0.5">
+                    {t('leaderboard.subWinnerHoldings.badge')}
+                  </p>
+                  <p className={`text-[10px] font-medium mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                    {t('leaderboard.subWinnerHoldings.context', { n: HOLDINGS_FETCH_CAP })}
+                  </p>
+                  {holdingSpotlight.loading && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <p className="text-[10px] text-slate-500 col-span-full -mb-1 sm:mb-0">
+                        {t('leaderboard.subWinnerHoldings.loading')}
+                      </p>
+                      {[0, 1].map(i => (
+                        <div
+                          key={i}
+                          className={`rounded-lg px-3 py-2.5 animate-pulse ${isDarkMode ? 'bg-slate-800/60' : 'bg-slate-200/80'}`}
+                        >
+                          <div className={`h-3 w-20 rounded mb-2 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-300'}`} />
+                          <div className={`h-5 w-14 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-slate-300'}`} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!holdingSpotlight.loading && holdingSpotlight.error && (
+                    <p className={`text-[11px] ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>
+                      {t('leaderboard.subWinnerHoldings.error')}
+                    </p>
+                  )}
+                  {!holdingSpotlight.loading && !holdingSpotlight.error && holdingSpotlight.rows.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {holdingSpotlight.rows.map(row => (
+                        <div
+                          key={row.symbol}
+                          className={`rounded-lg border px-3 py-2.5 min-w-0 ${
+                            isDarkMode
+                              ? 'bg-slate-950/40 border-slate-700/80'
+                              : 'bg-white border-slate-200'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0">
+                              <div className={`text-xs font-bold truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                                {row.name}
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-500">{row.symbol}</span>
+                            </div>
+                            <span className={`text-sm font-black font-mono shrink-0 ${getStrongTrendColorClass(row.changePct)}`}>
+                              {row.changePct > 0 ? '+' : ''}
+                              {row.changePct}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/90 mb-0.5">
+                    {t('leaderboard.subWinnerHoldings.siblingBadge')}
+                  </p>
+                  <p className={`text-[10px] font-medium mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                    {t('leaderboard.subWinnerHoldings.siblingContext', { sector: winner.name })}
+                  </p>
+                  {topSiblingEtfRows.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {topSiblingEtfRows.map(row => (
+                        <div
+                          key={row.symbol}
+                          className={`rounded-lg border px-3 py-2.5 min-w-0 ${
+                            isDarkMode
+                              ? 'bg-slate-950/40 border-slate-700/80'
+                              : 'bg-white border-slate-200'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0">
+                              <div className={`text-xs font-bold truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                                {row.name}
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-500">{row.symbol}</span>
+                            </div>
+                            <span className={`text-sm font-black font-mono shrink-0 ${getStrongTrendColorClass(row.changePct)}`}>
+                              {row.changePct > 0 ? '+' : ''}
+                              {row.changePct}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className={`rounded-lg border border-dashed px-3 py-3 text-center sm:col-span-2 ${
+                        isDarkMode ? 'border-slate-700 bg-slate-950/30' : 'border-slate-300 bg-slate-50'
+                      }`}
+                    >
+                      <p className={`text-[11px] leading-snug ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {t('leaderboard.subWinnerHoldings.nonEquityHint')}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-6">

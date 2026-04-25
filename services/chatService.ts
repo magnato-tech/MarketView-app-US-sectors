@@ -1,6 +1,7 @@
 import { SummaryStats, Period, MarketDataPoint } from "../types";
 import { RangeSummaryRow } from "./analysisService";
 import type { Language } from "../i18n/types";
+import { formatGeminiApiErrorForUser } from "./geminiUserFacingErrors";
 
 /**
  * AI Chat Service for MarketView
@@ -204,5 +205,8 @@ Svar i JSON-format:
     }
   }
 
-  throw lastError || new Error(language === 'en' ? 'Could not reach the analysis backend.' : 'Kunne ikke koble til analysesenteret.');
+  const fallback =
+    language === 'en' ? 'Could not reach the analysis backend.' : 'Kunne ikke koble til analysesenteret.';
+  const rawMsg = lastError instanceof Error ? lastError.message : String(lastError ?? '');
+  throw new Error(formatGeminiApiErrorForUser(rawMsg, language) || fallback);
 };

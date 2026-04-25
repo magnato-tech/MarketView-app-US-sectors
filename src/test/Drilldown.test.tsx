@@ -16,7 +16,9 @@ vi.mock('../../hooks/useDashboardLogic', () => ({
       data: [],
       summary: [],
       loading: false,
-      aiInsight: ''
+      error: null,
+      aiInsight: '',
+      aiSignals: [],
     },
     rangeSummary: [],
     activeTickers: initialTickers,

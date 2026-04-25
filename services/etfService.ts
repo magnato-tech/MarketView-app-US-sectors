@@ -993,6 +993,16 @@ export function getEtfHoldings(symbol: string): string[] {
   return record.holdings.map(h => h.symbol);
 }
 
+/** Topp N beholdningssymboler sortert etter vekt (synk, fra ETF_DATABASE). */
+export function getTopHoldingSymbolsByWeight(etfSymbol: string, maxCount = 14): string[] {
+  const record = ETF_DATABASE[etfSymbol];
+  if (!record?.holdings?.length) return [];
+  return [...record.holdings]
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, maxCount)
+    .map(h => h.symbol);
+}
+
 /**
  * Synkron oppslag av ETF-navn (brukes i drilldown-banner uten å vente på
  * fetchETFDetails).

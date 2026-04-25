@@ -45,12 +45,13 @@ const MainDashboard: React.FC<DashboardProps> = ({
   chartLayoutFullscreen, onEnterMainFullscreen, onExitMainFullscreen,
 }) => {
   const {
-    data, summary, loading, aiInsight, aiSignals,
+    data, summary, rangeSummary, loading, marketDataError, aiInsight, aiSignals,
     period, onPeriodChange, interval, onIntervalChange,
     activeTickers, activeTab, isDarkMode, drilldownSector, activeDrilldownTickers, lastPrices,
     analysisSettings,
     drilldownETF, activeEtfStockTickers, detailContext, setDetailContext, closeEtfDrilldown,
-    toggleEtfStockTicker, toggleDrilldownTicker, setDrilldownSector, setAutoTopThreeEnabled
+    toggleEtfStockTicker, toggleDrilldownTicker, setDrilldownSector, setAutoTopThreeEnabled,
+    refreshData, allSectorsSummary,
   } = useDashboard();
 
   // Når detalj-panelet er åpent, reserver vi plass på høyre side
@@ -130,6 +131,46 @@ const MainDashboard: React.FC<DashboardProps> = ({
     </div>
   ) : null;
 
+  const sectorDrilldownBanner =
+    drilldownSector && !drilldownETF ? (
+      <div
+        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-xl border-2 ${
+          isDarkMode
+            ? 'bg-emerald-600/10 border-emerald-500/35 text-emerald-50'
+            : 'bg-emerald-50 border-emerald-300 text-emerald-950'
+        }`}
+      >
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-2 h-8 bg-emerald-500 rounded-full shrink-0 mt-0.5" />
+          <div className="min-w-0 space-y-1">
+            <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+              {t('sectorDrilldown.badge')}
+            </div>
+            <div className="text-sm font-bold">
+              <span className="font-mono">{drilldownSector}</span>
+              <span className={`block sm:inline sm:ml-2 text-xs font-semibold ${isDarkMode ? 'text-emerald-200/90' : 'text-emerald-900/80'}`}>
+                {t('sectorDrilldown.hint')}
+              </span>
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setDrilldownSector(null);
+            setDetailContext(null);
+          }}
+          className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+            isDarkMode
+              ? 'bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700'
+              : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          {t('sectorDrilldown.exit')}
+        </button>
+      </div>
+    ) : null;
+
   if (activeTab === 'commandCenter') {
     return (
       <div className={`flex-1 p-4 lg:p-8 overflow-y-auto transition-[padding] duration-300 ${
@@ -168,10 +209,42 @@ const MainDashboard: React.FC<DashboardProps> = ({
       <div className={`flex-1 flex items-center justify-center min-h-[50vh] lg:min-h-0 transition-colors duration-300 ${
         isDarkMode ? 'bg-slate-950' : 'bg-slate-50'
       }`}>
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
-          <p className={`font-medium animate-pulse ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{t('dashboard.loadingMarketData')}</p>
+        <div className="flex flex-col items-center gap-5 max-w-md px-6 text-center">
+          <div
+            className="h-14 w-14 rounded-full border-4 border-slate-600 border-t-blue-500 animate-spin"
+            aria-hidden
+          />
+          <p className={`text-sm font-semibold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+            {t('dashboard.loadingMarketData')}
+          </p>
         </div>
+      </div>
+    );
+  }
+
+  if (marketDataError || summary.length === 0) {
+    return (
+      <div
+        className={`flex-1 flex flex-col items-center justify-center min-h-[50vh] lg:min-h-0 gap-4 px-6 text-center ${
+          isDarkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
+        }`}
+      >
+        <p className="text-lg font-black text-rose-400 max-w-md">
+          {marketDataError ? t('dashboard.fetchErrorTitle') : t('dashboard.emptyAfterLoadTitle')}
+        </p>
+        <p className="text-sm text-slate-400 max-w-md">
+          {marketDataError ? marketDataError.message : t('dashboard.emptyAfterLoadHint')}
+        </p>
+        {marketDataError ? (
+          <p className="text-xs text-slate-500 max-w-md">{t('dashboard.fetchErrorHint')}</p>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => refreshData()}
+          className="mt-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/30"
+        >
+          {t('common.retry')}
+        </button>
       </div>
     );
   }
@@ -208,6 +281,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
       } ${panelOffset}`}>
         <div className="shrink-0 flex flex-col gap-3 mb-3">
           {etfDrilldownBanner}
+          {sectorDrilldownBanner}
           {periodIntervalBar}
         </div>
         <ErrorBoundary title={eb('content')}>
@@ -245,6 +319,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
         </ErrorBoundary>
 
         {etfDrilldownBanner}
+        {sectorDrilldownBanner}
         {periodIntervalBar}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -279,11 +354,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
                 <div className="mb-2 flex justify-end">
                   <button
                     type="button"
-                    onClick={() => {
-                      setDrilldownSector(null);
-                      setDetailContext(null);
-                      setAutoTopThreeEnabled(true);
-                    }}
+                    onClick={() => setAutoTopThreeEnabled(true)}
                     className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                       isDarkMode
                         ? 'bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700'
@@ -352,7 +423,15 @@ const MainDashboard: React.FC<DashboardProps> = ({
 
           <div className="lg:col-span-4 space-y-6">
             <ErrorBoundary title={eb('leaderboard')}>
-              <Leaderboard />
+              <Leaderboard
+                summary={summary}
+                rangeSummary={rangeSummary}
+                loading={loading}
+                period={period}
+                interval={interval}
+                allSectorsSummary={allSectorsSummary}
+                isDarkMode={isDarkMode}
+              />
             </ErrorBoundary>
             <ErrorBoundary title={eb('aiChat')}>
               <AIChat />

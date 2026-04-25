@@ -26,6 +26,8 @@ interface DashboardContextType {
   data: MarketDataPoint[];
   summary: SummaryStats[];
   loading: boolean;
+  /** Markedsdata (Yahoo) feilet – se UI i MainDashboard. */
+  marketDataError: Error | null;
   aiInsight: string;
   aiSignals: AISignal[];
   rangeSummary: RangeSummaryRow[];
@@ -44,6 +46,8 @@ interface DashboardContextType {
   setAutoTopThreeEnabled: (enabled: boolean) => void;
   toggleTrendFilter: (direction: 'positive' | 'negative') => void;
   setDrilldownSector: (symbol: string | null) => void;
+  /** Avslutt sektor-drilldown og sett diagram til nøyaktig disse symbolene (ingen barn-ETF). */
+  leaveSectorDrilldownWithSymbols: (symbols: string[]) => void;
   toggleDrilldownTicker: (symbol: string) => void;
   handleTickerToggle: (symbol: string) => void;
   handlePeriodChange: (period: Period) => void;
@@ -86,7 +90,11 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
 }) => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
   const [drilldownSector, setDrilldownSectorState] = useState<string | null>(null);
-  const [previousTickers, setPreviousTickers] = useState<string[]>([]);
+  const [activeDrilldownTickers, setActiveDrilldownTickers] = useState<string[]>([]);
+  const [detailContext, setDetailContext] = useState<DetailContext | null>(null);
+  const [drilldownETF, setDrilldownETFState] = useState<string | null>(null);
+  const [activeEtfStockTickers, setActiveEtfStockTickers] = useState<string[]>([]);
+  const [preEtfDrilldownTickers, setPreEtfDrilldownTickers] = useState<string[]>([]);
   const [autoTopThreeEnabled, setAutoTopThreeEnabledState] = useState<boolean>(true);
   const [activeTrendFilter, setActiveTrendFilter] = useState<ActiveTrendFilter>(null);
   const [allSectorsSummary, setAllSectorsSummary] = useState<SummaryStats[]>([]);
@@ -144,19 +152,37 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     setAutoTopThreeEnabledState(enabled);
     if (enabled) {
       setActiveTrendFilter(null);
+      setDrilldownSectorState(null);
+      setActiveDrilldownTickers([]);
+      setDrilldownETFState(null);
+      setActiveEtfStockTickers([]);
+      setPreEtfDrilldownTickers([]);
+      setDetailContext(null);
     }
   };
 
+  const sectorSymbolSet = React.useMemo(
+    () => new Set(TICKERS.filter(t => t.category === 'Sector').map(t => t.symbol)),
+    []
+  );
+
+  const sectorSummaryForRanking = React.useMemo(
+    () => allSectorsSummary.filter(s => sectorSymbolSet.has(s.symbol)),
+    [allSectorsSummary, sectorSymbolSet]
+  );
+
   React.useEffect(() => {
     let cancelled = false;
-    const sectorSymbols = TICKERS
-      .filter(t => t.category === 'Sector')
-      .map(t => t.symbol);
+    const sectorSymbols = TICKERS.filter(t => t.category === 'Sector').map(t => t.symbol);
+    const drilldownEtfSymbols = TICKERS.filter(
+      t => t.category === 'ETF' && t.parentSymbol && sectorSymbolSet.has(t.parentSymbol)
+    ).map(t => t.symbol);
+    const allSymbols = [...new Set([...sectorSymbols, ...drilldownEtfSymbols])];
 
     const loadAllSectorsSummary = async () => {
       try {
         const { summary } = await fetchMarketData(
-          sectorSymbols,
+          allSymbols,
           state.period,
           state.interval
         );
@@ -172,45 +198,40 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     return () => {
       cancelled = true;
     };
-  }, [state.period, state.interval]);
+  }, [state.period, state.interval, sectorSymbolSet]);
+
+  const clearSectorDrilldownState = () => {
+    setDrilldownSectorState(null);
+    setActiveDrilldownTickers([]);
+  };
+
+  const leaveSectorDrilldownWithSymbols = (symbols: string[]) => {
+    setActiveTrendFilter(null);
+    setAutoTopThreeEnabledState(false);
+    clearSectorDrilldownState();
+    setDetailContext(null);
+    setSelectedTickers(symbols);
+  };
 
   const setDrilldownSector = (symbol: string | null) => {
     if (symbol === drilldownSector) return;
 
     if (symbol) {
-      // Aktiverer drilldown (Fokus-modus)
       setActiveTrendFilter(null);
-      setPreviousTickers(state.selectedTickers);
       setDrilldownSectorState(symbol);
-      
-      // Finn alle barn (ETF-er) for denne sektoren
+
       const childTickers = TICKERS.filter(t => t.parentSymbol === symbol).map(t => t.symbol);
-      
-      // Vi setter ALLE i selectedTickers slik at data lastes inn for alle.
-      // Vi skal nå bruke en ny state 'activeDrilldownTickers' for å styre hvem som faktisk VISES i grafen.
+
       setSelectedTickers([symbol, ...childTickers]);
-      setActiveDrilldownTickers([symbol]); // Kun sektoren vises initialt
+      setActiveDrilldownTickers([symbol]);
     } else {
-      // Deaktiverer drilldown (Gjenopprett)
-      setDrilldownSectorState(null);
-      setActiveDrilldownTickers([]);
-      if (previousTickers.length > 0) {
-        setSelectedTickers(previousTickers);
+      const focus = drilldownSector;
+      clearSectorDrilldownState();
+      if (focus) {
+        setSelectedTickers([focus]);
       }
     }
   };
-
-
-  const [activeDrilldownTickers, setActiveDrilldownTickers] = useState<string[]>([]);
-  const [detailContext, setDetailContext] = useState<DetailContext | null>(null);
-
-  // ETF -> aksjer drilldown: speiler sektor-drilldown strukturelt.
-  // - drilldownETF = moder-ETF (alltid synlig i graf)
-  // - activeEtfStockTickers = hvilke søsken-aksjer som er krysset av
-  // - preEtfDrilldownTickers = tickers å gjenopprette når modus avsluttes
-  const [drilldownETF, setDrilldownETFState] = useState<string | null>(null);
-  const [activeEtfStockTickers, setActiveEtfStockTickers] = useState<string[]>([]);
-  const [preEtfDrilldownTickers, setPreEtfDrilldownTickers] = useState<string[]>([]);
 
   const openEtfDrilldown = (etfSymbol: string) => {
     if (drilldownETF === etfSymbol) return;
@@ -298,7 +319,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
       setActiveTrendFilter(null);
       return;
     }
-    const filtered = computeTrendFilteredSymbols(direction, allSectorsSummary);
+    const filtered = computeTrendFilteredSymbols(direction, sectorSummaryForRanking);
     if (!filtered) return;
 
     setActiveTrendFilter(direction);
@@ -312,6 +333,24 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     if (autoTopThreeEnabled) {
       setAutoTopThreeEnabledState(false);
     }
+
+    if (drilldownSector) {
+      const meta = TICKERS.find(t => t.symbol === symbol);
+      const isRootSector =
+        meta?.category === 'Sector' && !meta.parentSymbol;
+
+      if (symbol === drilldownSector) {
+        setDrilldownSector(null);
+        setDetailContext(null);
+        return;
+      }
+
+      if (isRootSector && symbol !== drilldownSector) {
+        leaveSectorDrilldownWithSymbols([drilldownSector, symbol]);
+        return;
+      }
+    }
+
     baseHandleTickerToggle(symbol);
   };
 
@@ -334,18 +373,18 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
 
   const sectorTrendBySymbol = React.useMemo(() => {
     const map: Record<string, number> = {};
-    allSectorsSummary.forEach(row => {
+    sectorSummaryForRanking.forEach(row => {
       map[row.symbol] = row.percentChange;
     });
     return map;
-  }, [allSectorsSummary]);
+  }, [sectorSummaryForRanking]);
 
   React.useEffect(() => {
     if (!autoTopThreeEnabled) return;
     if (drilldownSector || drilldownETF) return;
-    if (allSectorsSummary.length === 0) return;
+    if (sectorSummaryForRanking.length === 0) return;
 
-    const topThree = [...allSectorsSummary]
+    const topThree = [...sectorSummaryForRanking]
       .sort((a, b) => b.percentChange - a.percentChange)
       .slice(0, 3)
       .map(row => row.symbol);
@@ -363,7 +402,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     autoTopThreeEnabled,
     drilldownSector,
     drilldownETF,
-    allSectorsSummary,
+    sectorSummaryForRanking,
     state.selectedTickers,
     setSelectedTickers,
   ]);
@@ -371,15 +410,17 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
   React.useEffect(() => {
     if (!activeTrendFilter) return;
     if (drilldownSector || drilldownETF) return;
-    if (allSectorsSummary.length === 0) return;
+    if (sectorSummaryForRanking.length === 0) return;
 
-    applyTrendFilterFromSummary(activeTrendFilter, allSectorsSummary, {
+    applyTrendFilterFromSummary(activeTrendFilter, sectorSummaryForRanking, {
       resetDrilldown: false,
     });
-  }, [activeTrendFilter, allSectorsSummary, drilldownSector, drilldownETF]);
+  }, [activeTrendFilter, sectorSummaryForRanking, drilldownSector, drilldownETF]);
 
+  const { error: marketDataError, ...stateForContext } = state;
   const value: DashboardContextType = {
-    ...state,
+    ...stateForContext,
+    marketDataError,
     rangeSummary,
     activeTickers,
     activeTab,
@@ -395,6 +436,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode; initialTickers: 
     setAutoTopThreeEnabled,
     toggleTrendFilter,
     setDrilldownSector,
+    leaveSectorDrilldownWithSymbols,
     toggleDrilldownTicker,
     handleTickerToggle,
     handlePeriodChange,

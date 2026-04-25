@@ -1,6 +1,7 @@
 import { SummaryStats, Period, MarketDataPoint } from "../types";
 import type { Language } from "../i18n/types";
 import { AISignal } from "../types/trading";
+import { formatGeminiApiErrorForUser } from "./geminiUserFacingErrors";
 
 /** Primærmodell for markedsrapport (oppdatert fra gemini-1.5-flash). */
 const GEMINI_MODEL_PRIMARY = "gemini-3.1-flash";
@@ -659,10 +660,11 @@ export const getMarketInsights = async (
     throw new Error(lastError || (language === 'en' ? 'Unknown error from Gemini API' : 'Ukjent feil fra Gemini API'));
   } catch (error: any) {
     console.error("AI Insight error:", error);
+    const msg = formatGeminiApiErrorForUser(error?.message, language);
     return {
       analysis: language === 'en'
-        ? `Market analysis is temporarily unavailable. (Error: ${error?.message || 'Connection error'})`
-        : `Markedsanalysen er midlertidig utilgjengelig. (Feil: ${error?.message || 'Tilkoblingsfeil'})`,
+        ? `Market analysis is temporarily unavailable. ${msg}`
+        : `Markedsanalysen er midlertidig utilgjengelig. ${msg}`,
       signals: []
     };
   }

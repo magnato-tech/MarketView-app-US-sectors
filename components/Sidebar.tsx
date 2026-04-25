@@ -20,6 +20,8 @@ const Sidebar: React.FC<SidebarProps> = () => {
     activeTrendFilter,
     toggleTrendFilter,
     drilldownSector,
+    setDrilldownSector,
+    leaveSectorDrilldownWithSymbols,
     activeTickers,
     sectorTrendBySymbol,
     handleTickerToggle,
@@ -84,7 +86,23 @@ const Sidebar: React.FC<SidebarProps> = () => {
         </div>
 
         <button
-          onClick={() => setDetailContext({ symbol: ticker.symbol, type: ticker.category === 'Sector' ? 'sector' : 'etf' })}
+          type="button"
+          onClick={() => {
+            const isRootSector = ticker.category === 'Sector' && !ticker.parentSymbol;
+            if (isRootSector && drilldownSector === ticker.symbol) {
+              setDrilldownSector(null);
+              setDetailContext(null);
+              return;
+            }
+            if (isRootSector && drilldownSector && drilldownSector !== ticker.symbol) {
+              leaveSectorDrilldownWithSymbols([drilldownSector, ticker.symbol]);
+              return;
+            }
+            setDetailContext({
+              symbol: ticker.symbol,
+              type: ticker.category === 'Sector' ? 'sector' : 'etf',
+            });
+          }}
           className={`flex-1 flex items-center gap-3 p-2 rounded-lg transition-all border border-transparent text-left ${
             isDarkMode ? 'hover:bg-slate-800/50 hover:border-slate-700/50' : 'hover:bg-slate-200/50 hover:border-slate-300/50'
           } ${isDrilldownActive ? (isDarkMode ? 'bg-blue-600/10 border-blue-500/30' : 'bg-blue-50 border-blue-200') : ''}`}

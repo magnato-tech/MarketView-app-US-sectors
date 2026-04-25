@@ -11,7 +11,7 @@ export const useDashboardLogic = (initialTickers: string[]) => {
   const [interval, setInterval] = useState<Interval>('1d');
   const { language } = useLanguage();
 
-  const { data, summary, loading, refreshData } = useMarketData(selectedTickers, period, interval);
+  const { data, summary, loading, error, refreshData } = useMarketData(selectedTickers, period, interval);
   const { aiInsight, aiSignals } = useAIInsights(summary, period, data, language);
 
   const handleTickerToggle = (symbol: string) => {
@@ -47,6 +47,7 @@ export const useDashboardLogic = (initialTickers: string[]) => {
       data,
       summary,
       loading,
+      error,
       aiInsight,
       aiSignals
     },

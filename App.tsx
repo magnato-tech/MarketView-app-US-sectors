@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MainDashboard from './components/MainDashboard';
-import { DashboardProvider, useDashboard } from './contexts/DashboardContext';
+import { DashboardProvider } from './contexts/DashboardContext';
 import { TradingProvider } from './contexts/TradingContext';
 import { ETFDetailsPanel } from './components/ETFDetailsPanel';
 
