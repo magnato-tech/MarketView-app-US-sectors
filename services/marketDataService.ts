@@ -11,6 +11,7 @@ const periodMap: Record<Period, string> = {
   '1d': '1d',
   '5d': '5d',
   '2w': '14d',
+  '3w': '21d',
   '1mo': '1mo',
   '2mo': '2mo',
   '3mo': '3mo',

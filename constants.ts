@@ -102,5 +102,5 @@ export const TICKERS: TickerInfo[] = [
   { symbol: 'PPLT', name: 'Platinum Shares', category: 'ETF', parentSymbol: 'GLD', color: '#eab308' },
 ];
 
-export const PERIODS = ['1d', '5d', '2w', '1mo', '2mo', '3mo', '6mo', '1y', '2y', '5y'] as const;
+export const PERIODS = ['1d', '5d', '2w', '3w', '1mo', '2mo', '3mo', '6mo', '1y', '2y', '5y'] as const;
 export const INTERVALS = ['1d', '1wk', '1mo'] as const;
