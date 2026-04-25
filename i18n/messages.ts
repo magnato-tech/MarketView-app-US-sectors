@@ -11,7 +11,7 @@ const no = {
     info: 'Informasjon',
   },
   sidebar: {
-    appTitle: 'MarketView',
+    appTitle: 'Kinvest',
     appSuffix: 'Pro',
     theme: {
       toLight: 'Bytt til lyst tema',
@@ -246,7 +246,7 @@ const en: MessageTree = {
     info: 'Information',
   },
   sidebar: {
-    appTitle: 'MarketView',
+    appTitle: 'Kinvest',
     appSuffix: 'Pro',
     theme: {
       toLight: 'Switch to light theme',
