@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MainDashboard from './components/MainDashboard';
 import { DashboardProvider, useDashboard } from './contexts/DashboardContext';
-import { LanguageProvider } from './contexts/LanguageContext';
 import { TradingProvider } from './contexts/TradingContext';
 import { ETFDetailsPanel } from './components/ETFDetailsPanel';
 
@@ -17,9 +16,8 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <LanguageProvider>
-      <TradingProvider>
-        <DashboardProvider initialTickers={['XLK', 'XLF', 'XLE']}>
+    <TradingProvider>
+      <DashboardProvider initialTickers={['XLK', 'XLF', 'XLE']}>
         <div
           ref={rootRef}
           className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden bg-slate-950 text-slate-200 dark:bg-slate-950 dark:text-slate-200 light:bg-slate-50 light:text-slate-900 transition-colors duration-300"
@@ -31,7 +29,6 @@ const App: React.FC = () => {
         </div>
       </DashboardProvider>
     </TradingProvider>
-  </LanguageProvider>
   );
 };
 

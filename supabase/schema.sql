@@ -75,9 +75,11 @@ ALTER TABLE factory_state ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public Read Access" ON bots FOR SELECT USING (true);
 CREATE POLICY "Public Write Access" ON bots FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public Update Access" ON bots FOR UPDATE USING (true);
+CREATE POLICY "Public Delete Access" ON bots FOR DELETE USING (true);
 
 CREATE POLICY "Public Read Access" ON evaluations FOR SELECT USING (true);
 CREATE POLICY "Public Write Access" ON evaluations FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update Access" ON evaluations FOR UPDATE USING (true);
 
 CREATE POLICY "Public Read Access" ON deployments FOR SELECT USING (true);
 CREATE POLICY "Public Write Access" ON deployments FOR INSERT WITH CHECK (true);

@@ -50,7 +50,7 @@ const MainDashboard: React.FC<DashboardProps> = ({
     activeTickers, activeTab, isDarkMode, drilldownSector, activeDrilldownTickers, lastPrices,
     analysisSettings,
     drilldownETF, activeEtfStockTickers, detailContext, setDetailContext, closeEtfDrilldown,
-    toggleEtfStockTicker, toggleDrilldownTicker, setDrilldownSector
+    toggleEtfStockTicker, toggleDrilldownTicker, setDrilldownSector, setAutoTopThreeEnabled
   } = useDashboard();
 
   // Når detalj-panelet er åpent, reserver vi plass på høyre side
@@ -276,6 +276,23 @@ const MainDashboard: React.FC<DashboardProps> = ({
 
             {drilldownSector && (
               <ErrorBoundary title={eb('table')}>
+                <div className="mb-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrilldownSector(null);
+                      setDetailContext(null);
+                      setAutoTopThreeEnabled(true);
+                    }}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                      isDarkMode
+                        ? 'bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700'
+                        : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {t('analysis.autoTopThree')}
+                  </button>
+                </div>
                 <MarketSummaryTable 
                   title={`${t('drilldownTable.titlePrefix')}: ${drilldownSector}`}
                   summary={summary.filter(s => {

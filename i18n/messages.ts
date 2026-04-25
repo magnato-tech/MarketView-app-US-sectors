@@ -13,6 +13,9 @@ const no = {
   sidebar: {
     appTitle: 'Kinvest',
     appSuffix: 'Pro',
+    actions: {
+      selectAllMainSectors: 'Velg alle',
+    },
     theme: {
       toLight: 'Bytt til lyst tema',
       toDark: 'Bytt til mørkt tema',
@@ -56,6 +59,12 @@ const no = {
     },
   },
   analysis: {
+    autoTopThree: 'Auto: topp 3',
+    trendFilterGroup: 'Filtrer diagram etter positiv eller negativ utvikling',
+    positiveSectors: 'Vis alle positive sektorer',
+    negativeSectors: 'Vis alle negative sektorer',
+    positiveShort: 'Grønn',
+    negativeShort: 'Rød',
     capitalFlow: 'Kapitalstrøm',
     capitalFlowTooltip: 'Vis hver sektors andel av total handelsverdi',
     capitalFlowInfo: 'Viser momentum i handelsvolum (dollarverdi) relativt til starten av perioden',
@@ -73,6 +82,9 @@ const no = {
   drilldown: {
     title: 'Drilldown',
     backToOverview: 'Tilbake til oversikt',
+    actions: {
+      showAllSubsectors: 'Vis alle subsektorer',
+    },
     columns: {
       etf: 'ETF',
       lastPrice: 'Sist',
@@ -83,8 +95,8 @@ const no = {
   leaderboard: {
     winnerLast: 'Vinner siste {period}',
     totalReturn: 'Total avkastning',
-      momentumLeaders: 'Momentum-ledere',
-      meanReversion: 'Potensielle snuoperasjoner?',
+      momentumLeaders: 'Periodens vinnere',
+      meanReversion: 'Periodens tapere',
       metrics: {
         relStrength: 'Rel. styrke',
         volatility: 'Volatilitet',
@@ -248,6 +260,9 @@ const en: MessageTree = {
   sidebar: {
     appTitle: 'Kinvest',
     appSuffix: 'Pro',
+    actions: {
+      selectAllMainSectors: 'Select all',
+    },
     theme: {
       toLight: 'Switch to light theme',
       toDark: 'Switch to dark theme',
@@ -291,6 +306,12 @@ const en: MessageTree = {
     },
   },
   analysis: {
+    autoTopThree: 'Auto: top 3',
+    trendFilterGroup: 'Filter chart by positive or negative performance',
+    positiveSectors: 'Show all positive sectors',
+    negativeSectors: 'Show all negative sectors',
+    positiveShort: 'Green',
+    negativeShort: 'Red',
     capitalFlow: 'Capital flow',
     capitalFlowTooltip: 'Show each sector’s share of total dollar volume',
     capitalFlowInfo: 'Shows momentum in trading volume (dollar value) relative to the start of the period',
@@ -308,6 +329,9 @@ const en: MessageTree = {
   drilldown: {
     title: 'Drilldown',
     backToOverview: 'Back to overview',
+    actions: {
+      showAllSubsectors: 'Show all subsectors',
+    },
     columns: {
       etf: 'ETF',
       lastPrice: 'Last',
@@ -318,8 +342,8 @@ const en: MessageTree = {
   leaderboard: {
     winnerLast: 'Top performer last {period}',
     totalReturn: 'Total return',
-      momentumLeaders: 'Momentum leaders',
-      meanReversion: 'Mean reversion?',
+      momentumLeaders: "Period's winners",
+      meanReversion: "Period's losers",
       metrics: {
         relStrength: 'Rel. Strength',
         volatility: 'Volatility',

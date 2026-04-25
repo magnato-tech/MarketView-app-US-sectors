@@ -1,13 +1,61 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDashboard } from '../../contexts/DashboardContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getStrongTrendColorClass } from '../../utils/formatters';
+import type { DerivedMetrics } from '../../services/analysisService';
+
+type LeaderboardRow = {
+  symbol: string;
+  name: string;
+  changePct: number;
+  color: string;
+  metrics: DerivedMetrics;
+};
+
+const emptyMetrics = (): DerivedMetrics => ({
+  rank: 0,
+  volatility: 0,
+  maxDrawdown: 0,
+  trendStatus: 'Neutral',
+  momentumScore: 0,
+  regime: 'Stable',
+  relativeStrength: 0,
+  flowScore: 0,
+});
 
 export const Leaderboard: React.FC = () => {
-  const { summary, rangeSummary, loading, period } = useDashboard();
+  const { summary, rangeSummary, loading, period, allSectorsSummary } = useDashboard();
   const { t } = useLanguage();
 
-  if (loading || summary.length === 0) {
+  const universeRows = useMemo((): LeaderboardRow[] => {
+    if (allSectorsSummary.length > 0) {
+      return allSectorsSummary.map(s => ({
+        symbol: s.symbol,
+        name: s.name,
+        changePct: s.percentChange,
+        color: s.color,
+        metrics: emptyMetrics(),
+      }));
+    }
+    if (rangeSummary.length > 0) {
+      return rangeSummary.map(r => ({
+        symbol: r.symbol,
+        name: r.name,
+        changePct: r.changePct,
+        color: r.color,
+        metrics: r.metrics ?? emptyMetrics(),
+      }));
+    }
+    return summary.map(s => ({
+      symbol: s.symbol,
+      name: s.name,
+      changePct: s.percentChange,
+      color: s.color,
+      metrics: emptyMetrics(),
+    }));
+  }, [allSectorsSummary, rangeSummary, summary]);
+
+  if (loading && summary.length === 0) {
     return (
       <div className="bg-slate-900 dark:bg-slate-900 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 animate-pulse">
         <div className="h-6 w-32 bg-slate-800 rounded mb-4"></div>
@@ -20,22 +68,20 @@ export const Leaderboard: React.FC = () => {
     );
   }
 
-  // Bruk rangeSummary hvis tilgjengelig, ellers summary
-  const data = rangeSummary.length > 0 ? rangeSummary : summary.map(s => ({
-    symbol: s.symbol,
-    name: s.name,
-    changePct: s.percentChange,
-    color: s.color,
-    metrics: {
-      rank: 0,
-      volatility: 0,
-      maxDrawdown: 0,
-      trendStatus: 'Neutral' as const,
-      momentumScore: 0,
-      regime: 'Stable' as const,
-      relativeStrength: 0
-    }
-  }));
+  if (universeRows.length === 0) {
+    return (
+      <div className="bg-slate-900 dark:bg-slate-900 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-6 animate-pulse">
+        <div className="h-6 w-40 bg-slate-800 rounded mb-4"></div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="h-10 bg-slate-800/50 rounded"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const data = universeRows;
 
   const sorted = [...data].sort((a, b) => b.changePct - a.changePct);
   const top5 = sorted.slice(0, 5);

@@ -15,8 +15,13 @@ const Sidebar: React.FC<SidebarProps> = () => {
     isDarkMode,
     toggleDarkMode,
     setDetailContext,
+    autoTopThreeEnabled,
+    setAutoTopThreeEnabled,
+    activeTrendFilter,
+    toggleTrendFilter,
     drilldownSector,
     activeTickers,
+    sectorTrendBySymbol,
     handleTickerToggle,
     activeTab,
     setActiveTab
@@ -52,6 +57,19 @@ const Sidebar: React.FC<SidebarProps> = () => {
   const renderTickerRow = (ticker: any) => {
     const isDrilldownActive = drilldownSector === ticker.symbol;
     const isSelected = activeTickers.includes(ticker.symbol);
+    const trend = sectorTrendBySymbol[ticker.symbol] ?? 0;
+    const hasPositiveTrend = trend > 0.1;
+    const hasNegativeTrend = trend < -0.1;
+    const trendDotClass = hasPositiveTrend
+      ? 'bg-emerald-500'
+      : hasNegativeTrend
+        ? 'bg-rose-500'
+        : 'bg-slate-400';
+    const trendTitle = hasPositiveTrend
+      ? 'Positiv utvikling i perioden'
+      : hasNegativeTrend
+        ? 'Negativ utvikling i perioden'
+        : 'Nøytral utvikling i perioden';
     
     return (
       <div key={ticker.symbol} className="flex items-center group gap-1">
@@ -82,11 +100,18 @@ const Sidebar: React.FC<SidebarProps> = () => {
           </div>
           <div className="flex-1 flex items-center justify-between min-w-0">
             <div className="flex flex-col min-w-0">
-              <span className={`text-sm truncate transition-colors ${
+              <span className={`text-sm truncate transition-colors flex items-center gap-1.5 ${
                 isDrilldownActive
                   ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-600 font-bold')
                   : isDarkMode ? 'text-slate-400 group-hover:text-slate-200' : 'text-slate-600 group-hover:text-slate-900'
               }`}>
+                {ticker.category === 'Sector' && (
+                  <span
+                    className={`inline-block w-2 h-2 rounded-full ${trendDotClass}`}
+                    title={trendTitle}
+                    aria-label={trendTitle}
+                  />
+                )}
                 {ticker.name}
               </span>
               <span className={`text-[10px] font-mono ${isDrilldownActive ? 'text-blue-500/60' : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}`}>
@@ -187,9 +212,54 @@ const Sidebar: React.FC<SidebarProps> = () => {
       </section>
 
       <section className="pb-10">
-        <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-5 border-b pb-2 ${
-          isDarkMode ? 'text-slate-500 border-slate-800' : 'text-slate-400 border-slate-200'
-        }`}>{t('sidebar.sections.sectorCategories')}</h3>
+        <div className="mb-3 flex items-center justify-between gap-2 border-b pb-2 border-slate-800 dark:border-slate-800 light:border-slate-200">
+          <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+            isDarkMode ? 'text-slate-500' : 'text-slate-400'
+          }`}>{t('sidebar.sections.sectorCategories')}</h3>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setAutoTopThreeEnabled(true)}
+              className={`px-2 py-1 text-[10px] font-black uppercase tracking-wider rounded-md transition-colors ${
+                autoTopThreeEnabled
+                  ? 'bg-emerald-600 text-white border border-emerald-500'
+                  : isDarkMode
+                    ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-300'
+              }`}
+            >
+              {t('analysis.autoTopThree')}
+            </button>
+            <div className="flex flex-col items-center gap-1 shrink-0" role="group" aria-label={t('analysis.trendFilterGroup')}>
+              <button
+                type="button"
+                onClick={() => toggleTrendFilter('positive')}
+                aria-pressed={activeTrendFilter === 'positive'}
+                title={t('analysis.positiveSectors')}
+                className={`h-6 w-6 rounded-full border-2 transition-all ${
+                  activeTrendFilter === 'positive'
+                    ? 'bg-emerald-500 border-emerald-200 ring-2 ring-emerald-400/60 scale-105 shadow-sm'
+                    : isDarkMode
+                      ? 'border-emerald-700/70 bg-slate-800 hover:border-emerald-500'
+                      : 'border-emerald-400 bg-white hover:border-emerald-600'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => toggleTrendFilter('negative')}
+                aria-pressed={activeTrendFilter === 'negative'}
+                title={t('analysis.negativeSectors')}
+                className={`h-6 w-6 rounded-full border-2 transition-all ${
+                  activeTrendFilter === 'negative'
+                    ? 'bg-rose-500 border-rose-200 ring-2 ring-rose-400/60 scale-105 shadow-sm'
+                    : isDarkMode
+                      ? 'border-rose-700/70 bg-slate-800 hover:border-rose-500'
+                      : 'border-rose-400 bg-white hover:border-rose-600'
+                }`}
+              />
+            </div>
+          </div>
+        </div>
         <div className="space-y-1">
           {mainSectors.map(ticker => renderTickerRow(ticker))}
         </div>

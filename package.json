@@ -11,7 +11,8 @@
     "factory:challenge": "tsx \"factory/scripts/run-challenge.ts\"",
     "factory:live": "tsx \"factory/scripts/run-weekly-live.ts\"",
     "factory:seed-data": "tsx \"factory/scripts/seed-market-data.ts\"",
-    "factory:test-ollama": "tsx \"factory/scripts/test-ollama.ts\""
+    "factory:test-ollama": "tsx \"factory/scripts/test-ollama.ts\"",
+    "check:supabase": "tsx scripts/check-supabase-tables.ts"
   },
   "dependencies": {
     "@google/genai": "^1.34.0",
