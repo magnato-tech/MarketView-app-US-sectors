@@ -83,10 +83,35 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
         className="rounded border border-slate-600 px-2 py-1 text-[11px] font-mono shadow-lg"
         style={{ background: tooltipBg, color: isDarkMode ? '#e2e8f0' : '#0f172a' }}
       >
-        <div>{String(p.label)}</div>
-        {p.crisis_index != null ? <div>index {Number(p.crisis_index).toFixed(1)}</div> : null}
-        {p.helium_price_usd != null ? <div>He {Number(p.helium_price_usd).toFixed(2)}</div> : null}
-        {p.taiwan_reserve_pct != null ? <div>TW {Number(p.taiwan_reserve_pct).toFixed(1)}%</div> : null}
+        <div className="border-b border-slate-700 mb-1 pb-1 font-bold">{String(p.label)}</div>
+        {p.crisis_index != null ? (
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-500 uppercase text-[9px]">Index:</span>
+            <span className="font-bold">{Number(p.crisis_index).toFixed(1)}</span>
+          </div>
+        ) : null}
+        {p.helium_price_usd != null ? (
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-500 uppercase text-[9px]">Helium:</span>
+            <span className="font-bold text-violet-400">{Number(p.helium_price_usd).toFixed(2)}</span>
+          </div>
+        ) : null}
+        {p.taiwan_reserve_pct != null ? (
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-500 uppercase text-[9px]">Taiwan %:</span>
+            <span className={`font-bold ${Number(p.taiwan_reserve_pct) < 6 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {Number(p.taiwan_reserve_pct).toFixed(1)}%
+            </span>
+          </div>
+        ) : null}
+        {p.korea_reserve_pct != null ? (
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-500 uppercase text-[9px]">Korea %:</span>
+            <span className={`font-bold ${Number(p.korea_reserve_pct) < 6 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {Number(p.korea_reserve_pct).toFixed(1)}%
+            </span>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -146,7 +171,80 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
 
       <div className="rounded-xl border border-slate-700/80 bg-slate-950/40 light:bg-white light:border-slate-200 p-3">
         <p className="text-[10px] font-black uppercase tracking-widest text-violet-400/90 mb-2 px-1">
-          {isNo ? 'Helium (USD) og Taiwan-reserve (%)' : 'Helium (USD) and Taiwan reserve (%)'}
+          {isNo ? 'Energi-reserver vs 6% terskel' : 'Energy reserves vs 6% threshold'}
+        </p>
+        <div className="h-[260px] w-full min-h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={points}
+              margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+              onMouseMove={onMouseMove}
+              onMouseLeave={onMouseLeave}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: axis, fontSize: 9 }} interval="preserveStartEnd" minTickGap={24} />
+              <YAxis tick={{ fill: axis, fontSize: 9 }} width={40} domain={[0, 15]} />
+              <Tooltip content={tip} activeIndex={syncIndex} />
+              {/* 6% Critical Line */}
+              <ReferenceLine y={6} stroke="#f43f5e" strokeWidth={2} strokeDasharray="6 3" label={{ position: 'right', value: '6% LIMIT', fill: '#f43f5e', fontSize: 8, fontWeight: 'bold' }} />
+              
+              {lastPoint && lastPoint.taiwan_reserve_pct != null && (
+                <ReferenceDot
+                  x={lastPoint.label}
+                  y={lastPoint.taiwan_reserve_pct}
+                  r={3}
+                  fill="#34d399"
+                  stroke="#0f172a"
+                  strokeWidth={1}
+                />
+              )}
+              {lastPoint && (lastPoint as any).korea_reserve_pct != null && (
+                <ReferenceDot
+                  x={lastPoint.label}
+                  y={(lastPoint as any).korea_reserve_pct}
+                  r={3}
+                  fill="#fbbf24"
+                  stroke="#0f172a"
+                  strokeWidth={1}
+                />
+              )}
+              <Line
+                type="monotone"
+                dataKey="taiwan_reserve_pct"
+                name="Taiwan %"
+                stroke="#34d399"
+                strokeWidth={2}
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="korea_reserve_pct"
+                name="Korea %"
+                stroke="#fbbf24"
+                strokeWidth={2}
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+              {points.length > 50 && (
+                <Brush
+                  dataKey="label"
+                  height={20}
+                  stroke="#334155"
+                  fill="#0f172a"
+                  startIndex={Math.max(0, points.length - 100)}
+                />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-700/80 bg-slate-950/40 light:bg-white light:border-slate-200 p-3">
+        <p className="text-[10px] font-black uppercase tracking-widest text-violet-400/90 mb-2 px-1">
+          {isNo ? 'Helium (USD) Markedspris' : 'Helium (USD) Market Price'}
         </p>
         <div className="h-[220px] w-full min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -158,13 +256,10 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
             >
               <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
               <XAxis dataKey="label" tick={{ fill: axis, fontSize: 9 }} interval="preserveStartEnd" minTickGap={24} />
-              <YAxis yAxisId="L" tick={{ fill: axis, fontSize: 9 }} width={40} domain={['auto', 'auto']} />
-              <YAxis yAxisId="R" orientation="right" tick={{ fill: axis, fontSize: 9 }} width={40} domain={[0, 15]} />
+              <YAxis tick={{ fill: axis, fontSize: 9 }} width={40} domain={['auto', 'auto']} />
               <Tooltip content={tip} activeIndex={syncIndex} />
-              <ReferenceLine yAxisId="R" y={6} stroke="#f43f5e" strokeDasharray="4 4" strokeOpacity={0.7} />
               {lastPoint && lastPoint.helium_price_usd != null && (
                 <ReferenceDot
-                  yAxisId="L"
                   x={lastPoint.label}
                   y={lastPoint.helium_price_usd}
                   r={3}
@@ -173,34 +268,11 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
                   strokeWidth={1}
                 />
               )}
-              {lastPoint && lastPoint.taiwan_reserve_pct != null && (
-                <ReferenceDot
-                  yAxisId="R"
-                  x={lastPoint.label}
-                  y={lastPoint.taiwan_reserve_pct}
-                  r={3}
-                  fill="#34d399"
-                  stroke="#0f172a"
-                  strokeWidth={1}
-                />
-              )}
               <Line
-                yAxisId="L"
                 type="monotone"
                 dataKey="helium_price_usd"
                 name="He"
                 stroke="#a78bfa"
-                strokeWidth={2}
-                dot={false}
-                connectNulls
-                isAnimationActive={false}
-              />
-              <Line
-                yAxisId="R"
-                type="monotone"
-                dataKey="taiwan_reserve_pct"
-                name="TW%"
-                stroke="#34d399"
                 strokeWidth={2}
                 dot={false}
                 connectNulls
