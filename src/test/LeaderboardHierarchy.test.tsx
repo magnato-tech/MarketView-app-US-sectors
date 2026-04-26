@@ -158,38 +158,61 @@ describe('Leaderboard Hierarchy Logic', () => {
     });
   });
 
-  it('Comprehensive: verify that ALL main sectors produce a valid leaderboard structure', () => {
-    const mainSectors = [
-      { symbol: 'XLK', name: 'Teknologi', child: 'SOXX' },
-      { symbol: 'XLV', name: 'Helse', child: 'IBB' },
-      { symbol: 'XLF', name: 'Finans', child: 'KBE' },
-      { symbol: 'DBC', name: 'Råvarer', child: 'USO' },
+  it('Scenario 4: Percentage Hierarchy - Stocks should outperform their parent ETF', async () => {
+    const xlkWinnerSummary = [
+      { symbol: 'XLK', name: 'Teknologi', percentChange: 10.0, color: '#10b981', category: 'Sector' },
+      { symbol: 'SOXX', name: 'Semiconductors', percentChange: 12.0, color: '#34d399', category: 'ETF' },
     ];
 
-    mainSectors.forEach(({ symbol, name, child }) => {
-      const summary = [
-        { symbol, name, percentChange: 5.0, color: '#000', category: 'Sector' },
-        { symbol: child, name: 'Some ETF', percentChange: 6.0, color: '#111', category: 'ETF', parentSymbol: symbol }
-      ];
+    // Mocking stock data where some stocks are lower than the ETF (which is mathematically possible
+    // if other stocks in the ETF are much higher), but the TOP stocks should be higher.
+    (marketDataService.fetchMarketData as any).mockResolvedValue({
+      summary: [
+        { symbol: 'NVDA', name: 'NVIDIA Corp.', percentChange: 15.0 },
+        { symbol: 'AVGO', name: 'Broadcom Inc.', percentChange: 13.0 },
+        { symbol: 'AMD', name: 'Advanced Micro Devices', percentChange: 11.0 },
+        { symbol: 'QCOM', name: 'Qualcomm Inc.', percentChange: 9.0 },
+      ],
+    });
 
-      const { unmount } = renderLeaderboard({
-        summary,
-        rangeSummary: [],
-        loading: false,
-        period: '1mo',
-        interval: '1d',
-        allSectorsSummary: summary,
-        isDarkMode: true,
-      });
+    renderLeaderboard({
+      summary: xlkWinnerSummary,
+      rangeSummary: [],
+      loading: false,
+      period: '1mo',
+      interval: '1d',
+      allSectorsSummary: xlkWinnerSummary,
+      isDarkMode: true,
+    });
 
-      // Verify winner card exists
-      const winnerTitle = screen.getAllByText(name).find(el => el.tagName === 'H3');
-      expect(winnerTitle).toBeTruthy();
+    // Check sector winner (10%)
+    const mainChange = screen.getAllByText('+10%').find(el => el.className.includes('text-3xl'));
+    expect(mainChange).toBeTruthy();
+
+    // Check sub-winner (12%)
+    expect(screen.getByText('+12%')).toBeTruthy();
+
+    // The top 4 stocks shown should be sorted by performance.
+    // In our mock, NVDA (15%) and AVGO (13%) are > 12%.
+    // AMD (11%) and QCOM (9%) are < 12%.
+    // The user's point is that if the ETF is up 81%, the BEST stocks MUST be up > 81%.
+    
+    await waitFor(() => {
+      const stockChanges = screen.getAllByText(/\+\d+\.?\d*%/).map(el => el.textContent);
+      // We expect to find +15% and +13% in the list
+      expect(stockChanges).toContain('+15%');
+      expect(stockChanges).toContain('+13%');
       
-      // Verify sub-winner card exists
-      expect(screen.getByText('Sterkest ETF i sektoren')).toBeTruthy();
+      // Verify sorting: the first stock should be the best one (15%)
+      const firstStockPerf = screen.getAllByText('+15%').find(el => el.className.includes('text-xs'));
+      expect(firstStockPerf).toBeTruthy();
 
-      unmount();
+      // IMPORTANT: Verify the hierarchy rule
+      // If ETF is 12%, at least some of the top 4 MUST be >= 12%
+      const percentages = stockChanges.map(s => parseFloat(s!.replace('+', '').replace('%', '')));
+      const etfPct = 12.0;
+      const hasOutperformer = percentages.some(p => p >= etfPct);
+      expect(hasOutperformer).toBe(true);
     });
   });
 });

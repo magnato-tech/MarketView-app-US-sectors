@@ -6,6 +6,7 @@ import {
   buildSummary,
   YahooChartResponse 
 } from './dataTransformers';
+import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 
 const periodMap: Record<Period, string> = {
   '1d': '1d',
@@ -136,6 +137,39 @@ export const fetchMarketData = async (
   useRawPrices: boolean = false,
   retries = 2
 ): Promise<{ data: MarketDataPoint[]; summary: SummaryStats[] }> => {
+    // 1. Prøv å hente fra Supabase market_stats først hvis konfigurert
+    // Vi gjør dette kun for perioder som matcher vår daglige sync (f.eks. 6mo/1d)
+    const isStandardRequest = period === '6mo' && interval === '1d';
+    
+    if (isSupabaseConfigured() && isStandardRequest) {
+      try {
+        const supabase = getSupabaseClient();
+        const { data: cachedStats, error } = await supabase
+          .from('market_stats')
+          .select('*, instruments(name, color, category)')
+          .in('symbol', symbols);
+
+        if (!error && cachedStats && cachedStats.length === symbols.length) {
+          console.log('Using Supabase cached market stats');
+          // Konverter Supabase-data til SummaryStats-format
+          const summary: SummaryStats[] = cachedStats.map(s => ({
+            symbol: s.symbol,
+            name: s.instruments?.name || s.symbol,
+            lastPrice: s.last_price,
+            percentChange: s.change_pct,
+            color: s.instruments?.color || '#64748b',
+            // Legg til andre felt hvis nødvendig, eller bruk defaults
+          }));
+
+          // Merk: Siden vi ikke lagrer full historikk i market_stats ennå, 
+          // må vi fortsatt hente data fra Yahoo for å tegne grafer.
+          // Men vi kan returnere summary umiddelbart for Leaderboard.
+        }
+      } catch (e) {
+        console.warn('Supabase cache lookup failed, falling back to Yahoo', e);
+      }
+    }
+
     const range = periodMap[period];
     const intv = intervalMap[interval];
     const bySymbol: Record<string, PriceSeries> = {};

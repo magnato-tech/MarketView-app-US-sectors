@@ -157,10 +157,15 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     }
     let cancelled = false;
     setHoldingSpotlight({ loading: true, error: false, rows: [] });
+    
+    // Vi henter data for ALLE holdings for å finne de absolutt sterkeste
     fetchMarketData(symbols, period, interval)
       .then(({ summary: fetched }) => {
         if (cancelled) return;
+        
+        // Sorter etter avkastning (synkende) for å finne de 4 beste
         const sorted = [...fetched].sort((a, b) => b.percentChange - a.percentChange);
+        
         const top4 = sorted.slice(0, 4).map(s => ({
           symbol: s.symbol,
           name: getHoldingName(s.symbol) || s.name,

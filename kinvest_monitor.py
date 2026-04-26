@@ -780,6 +780,23 @@ def resolve_helium_csv_path(cli_value: str) -> str:
     return ""
 
 
+import subprocess
+
+def run_market_stats_sync():
+    """Kjører det eksterne synkroniseringsscriptet for markedsdata."""
+    script_path = Path(__file__).resolve().parent / "scripts" / "sync_market_stats.py"
+    if not script_path.exists():
+        console.print(f"[yellow]Sync-script ikke funnet:[/yellow] {script_path}")
+        return
+    
+    console.print("[cyan]Starter daglig synkronisering av markedsdata...[/cyan]")
+    try:
+        # Vi kjører dette som en separat prosess for å unngå blokkering og minneproblemer i hovedloopen
+        subprocess.run([sys.executable, str(script_path)], check=True)
+        console.print("[green]Markedsdata-synkronisering fullført.[/green]")
+    except Exception as exc:
+        console.print(f"[red]Synkronisering feilet:[/red] {exc}")
+
 def main() -> None:
     args = parse_args()
     twelve_key = os.getenv("TWELVE_DATA_API_KEY", "") or os.getenv("TWELVE_DATA_KEY", "")
@@ -792,8 +809,16 @@ def main() -> None:
 
     helium_csv = resolve_helium_csv_path(args.helium_csv)
 
+    last_sync_date = None
+
     while True:
         try:
+            # Sjekk om vi skal kjøre markedsdata-sync (en gang per dag)
+            today = dt.date.today()
+            if last_sync_date != today:
+                run_market_stats_sync()
+                last_sync_date = today
+
             snap = run_once(
                 db_path=args.db_path,
                 twelve_key=twelve_key,
