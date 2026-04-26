@@ -106,7 +106,7 @@ export const CrisisKpiHighlightCards: React.FC<Props> = ({ isNo }) => {
         <div
           key={c.id}
           className={`relative overflow-hidden rounded-2xl border bg-slate-950/70 light:bg-white p-5 ${border(c.tone)} ${
-            i === 0 ? 'sm:col-span-2' : ''
+            c.id === 'ci' ? 'sm:col-span-2' : ''
           }`}
         >
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{c.title}</p>
