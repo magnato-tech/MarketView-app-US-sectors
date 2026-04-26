@@ -3,21 +3,18 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useCrisisEngine } from '../contexts/CrisisEngineContext';
 import { HEARTBEAT_OK_MINUTES } from '../services/crisisEngineRules';
 import { AnalystVerdict } from './AnalystVerdict';
-import { CRISIS_DEVELOPER_SYSTEM_PROMPT } from '../content/crisisDeveloperPrompt';
 import { CrisisTickerStrip } from './crisis/CrisisTickerStrip';
 import { CrisisIndexBand } from './crisis/CrisisIndexBand';
 import { CrisisTimeSeriesPanels } from './crisis/CrisisTimeSeriesPanels';
 import { CrisisSparklineRow } from './crisis/CrisisSparklineRow';
 import { CrisisKpiHighlightCards } from './crisis/CrisisKpiHighlightCards';
-import { CrisisStackNarrative } from './crisis/CrisisStackNarrative';
 import { CrisisAiPrimer } from './crisis/CrisisAiPrimer';
+import { CrisisGridLockVisual } from './crisis/CrisisGridLockVisual';
+import { CrisisSixPercentExplainer } from './crisis/CrisisSixPercentExplainer';
 
 export const CrisisMonitorPage: React.FC = () => {
   const { language } = useLanguage();
   const isNo = language === 'no';
-  const [instructionsOpen, setInstructionsOpen] = useState(false);
-  const [devDocOpen, setDevDocOpen] = useState(false);
-  const [storyOpen, setStoryOpen] = useState(false);
 
   const { supabaseReady, engineRow, realtimeState, heartbeatFresh, visualTier } = useCrisisEngine();
 
@@ -69,17 +66,18 @@ export const CrisisMonitorPage: React.FC = () => {
     <div className="max-w-7xl mx-auto space-y-6 pb-10">
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         <div className="flex-1 min-w-0 space-y-6">
-          <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 to-orange-500/10 p-6">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-black text-rose-400">
-              {isNo ? 'Kinvest Moduler' : 'Kinvest Modules'}
+          <div className="rounded-2xl border border-rose-500/30 bg-slate-950 p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500/50 via-orange-500/50 to-rose-500/50" />
+            <p className="text-[10px] uppercase tracking-[0.3em] font-black text-rose-500/80">
+              {isNo ? 'Kinvest Terminal' : 'Kinvest Terminal'}
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-100 dark:text-slate-100 light:text-slate-900">
-              Crisis Monitor
+            <h2 className="mt-2 text-3xl font-black tracking-tighter text-slate-100 uppercase">
+              Crisis Monitor <span className="text-rose-500 ml-2">v2.6</span>
             </h2>
-            <p className="mt-2 text-sm text-slate-300 dark:text-slate-300 light:text-slate-700">
+            <p className="mt-4 text-sm text-slate-400 max-w-2xl leading-relaxed font-medium">
               {isNo
-                ? 'Fysiske ledende KPI-er, tidsserier fra Supabase og sanntids heartbeat — bygget for å lese bunnen av kaka før toppen av markedet rekker å ompris.'
-                : 'Physical leading KPIs, Supabase time series and a realtime heartbeat — built to read the bottom of the stack before the market reprices the top.'}
+                ? 'Sanntidsovervåking av fysiske flaskehalser i halvleder-verdikjeden. Vi måler energireserver, industrigass og kapitalflukt før de reflekteres i aksjekursene.'
+                : 'Real-time monitoring of physical bottlenecks in the semiconductor value chain. Measuring energy reserves, industrial gas, and capital flight before they hit equity prices.'}
             </p>
           </div>
 
@@ -88,32 +86,36 @@ export const CrisisMonitorPage: React.FC = () => {
           </div>
 
           {!supabaseReady ? (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100 font-mono">
               {isNo
-                ? 'Supabase er ikke konfigurert i frontend. Sett VITE_SUPABASE_URL og VITE_SUPABASE_ANON_KEY (eller SUPABASE_URL / SUPABASE_ANON_KEY) og restart Vite.'
-                : 'Supabase is not configured for the frontend. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or SUPABASE_URL / SUPABASE_ANON_KEY) and restart Vite.'}
+                ? '!! SUPABASE_CONFIG_MISSING: Sett VITE_SUPABASE_URL og VITE_SUPABASE_ANON_KEY.'
+                : '!! SUPABASE_CONFIG_MISSING: Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'}
             </div>
           ) : null}
 
           {supabaseReady ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <CrisisTickerStrip isNo={isNo} />
-              <CrisisKpiHighlightCards isNo={isNo} />
-              <CrisisIndexBand isNo={isNo} />
-              <CrisisTimeSeriesPanels isNo={isNo} />
-              <CrisisSparklineRow isNo={isNo} />
+              <CrisisGridLockVisual isNo={isNo} />
+              <CrisisSixPercentExplainer isNo={isNo} />
+              <div className="grid grid-cols-1 gap-6">
+                <CrisisKpiHighlightCards isNo={isNo} />
+                <CrisisIndexBand isNo={isNo} />
+                <CrisisTimeSeriesPanels isNo={isNo} />
+                <CrisisSparklineRow isNo={isNo} />
+              </div>
             </div>
           ) : null}
 
           <div
-            className={`rounded-2xl border p-4 ${
+            className={`rounded-2xl border p-6 transition-all ${
               visualTier === 'green'
-                ? 'border-emerald-500/50 bg-emerald-500/15'
+                ? 'border-emerald-500/30 bg-emerald-500/5'
                 : visualTier === 'yellow'
-                  ? 'border-amber-500/40 bg-amber-500/10'
+                  ? 'border-amber-500/30 bg-amber-500/5'
                   : visualTier === 'red' || visualTier === 'grid_lock'
-                    ? 'border-rose-500/50 bg-rose-500/10'
-                    : 'border-slate-700 bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100'
+                    ? 'border-rose-500/40 bg-rose-500/5'
+                    : 'border-slate-800 bg-slate-900/40'
             }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -171,108 +173,11 @@ export const CrisisMonitorPage: React.FC = () => {
           <div className="hidden lg:block">
             <CrisisAiPrimer isNo={isNo} />
           </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 light:bg-white overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setStoryOpen(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/40 transition-colors"
-            >
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
-                {isNo ? 'Narrativ & Verdikjede' : 'Narrative & Value Chain'}
-              </span>
-              <span className="text-xs font-bold text-slate-500">{storyOpen ? '−' : '+'}</span>
-            </button>
-            {storyOpen ? (
-              <div className="px-4 pb-4 border-t border-slate-800">
-                <div className="mt-4 transform scale-[0.9] origin-top">
-                  <CrisisStackNarrative isNo={isNo} />
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 light:bg-white overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setInstructionsOpen(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/40 transition-colors"
-            >
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">
-                {isNo ? 'Operatør-oppstart' : 'Operator Startup'}
-              </span>
-              <span className="text-xs font-bold text-slate-500">{instructionsOpen ? '−' : '+'}</span>
-            </button>
-            {instructionsOpen ? (
-              <div className="px-4 pb-4 space-y-4 border-t border-slate-800 text-[11px]">
-                <div>
-                  <p className="font-bold text-slate-400 mb-1">{isNo ? 'Install' : 'Install'}</p>
-                  <pre className="bg-slate-950/60 p-2 rounded text-slate-300 overflow-x-auto">
-                    pip install -r requirements-monitor.txt
-                  </pre>
-                </div>
-                <div>
-                  <p className="font-bold text-slate-400 mb-1">{isNo ? 'Run loop' : 'Run loop'}</p>
-                  <pre className="bg-slate-950/60 p-2 rounded text-slate-300 overflow-x-auto">
-                    python kinvest_monitor.py --loop --interval-seconds 3600
-                  </pre>
-                </div>
-                <p className="text-slate-500 leading-tight">
-                  {isNo
-                    ? 'Sørg for at SUPABASE_SERVICE_ROLE_KEY er satt i .env for heartbeat-oppdatering.'
-                    : 'Ensure SUPABASE_SERVICE_ROLE_KEY is set in .env for heartbeat updates.'}
-                </p>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 light:bg-white overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setDevDocOpen(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/40 transition-colors"
-            >
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                {isNo ? 'System Prompt' : 'System Prompt'}
-              </span>
-              <span className="text-xs font-bold text-slate-500">{devDocOpen ? '−' : '+'}</span>
-            </button>
-            {devDocOpen ? (
-              <div className="px-4 pb-4 border-t border-slate-800">
-                <pre className="mt-4 whitespace-pre-wrap text-[10px] leading-relaxed text-slate-400 font-mono">
-                  {CRISIS_DEVELOPER_SYSTEM_PROMPT}
-                </pre>
-              </div>
-            ) : null}
-          </div>
         </aside>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <div className="rounded-xl border border-slate-800 dark:border-slate-800 light:border-slate-200 bg-slate-900 dark:bg-slate-900 light:bg-white p-4">
-            <h4 className="text-sm font-bold text-slate-100 dark:text-slate-100 light:text-slate-900">
-              {isNo ? 'Hva denne modulen gjør' : 'What this module does'}
-            </h4>
-            <ul className="mt-3 space-y-2 text-sm text-slate-300 dark:text-slate-300 light:text-slate-700 leading-snug">
-              <li>
-                {isNo
-                  ? 'Skriver KPI-rader til Supabase crisis_log hver kjøring.'
-                  : 'Writes KPI rows to Supabase crisis_log on each run.'}
-              </li>
-              <li>
-                {isNo
-                  ? 'Oppdaterer engine_status (id=1) med OPERATIONAL heartbeat.'
-                  : 'Updates engine_status (id=1) with an OPERATIONAL heartbeat.'}
-              </li>
-              <li>
-                {isNo
-                  ? 'Asian Grid Lock: Taipower og KPX begge under 6% → crisis index 95+ og umiddelbar critical sell.'
-                  : 'Asian Grid Lock: Taipower and KPX both under 6% → crisis index 95+ and immediate critical sell.'}
-              </li>
-            </ul>
-          </div>
-
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
             <h4 className="text-sm font-bold text-amber-300">
               {isNo ? 'Analysesjefens tommelfingerregel' : 'Chief analyst rule of thumb'}

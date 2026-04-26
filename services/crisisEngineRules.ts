@@ -6,7 +6,8 @@
  */
 
 export const TWD_PER_ONE_USD_STRAIN = 33;
-export const HELIUM_PRICE_CRITICAL_USD = 150;
+export const HELIUM_PRICE_WARNING_USD = 155;
+export const HELIUM_PRICE_CRITICAL_USD = 165;
 
 /**
  * Maks alder på last_heartbeat før UI viser «offline» / grå prikk.
@@ -26,6 +27,7 @@ export type EngineStatusKpiRow = {
   critical_sell: boolean | null;
   asian_grid_lock: boolean | null;
   taiwan_reserve_pct?: number | null;
+  korea_reserve_pct?: number | null;
   helium_price_usd?: number | null;
   twd_usd?: number | null;
 };
@@ -89,35 +91,50 @@ export function getAnalystVerdictLines(row: EngineStatusKpiRow | null, isNo: boo
   const kurs = twdPerOneUsd(row.twd_usd);
   const twdStrain = kurs != null && kurs > TWD_PER_ONE_USD_STRAIN;
   const hel = row.helium_price_usd;
-  const helHigh = hel != null && Number.isFinite(hel) && hel > HELIUM_PRICE_CRITICAL_USD;
+  const helCritical = hel != null && Number.isFinite(hel) && hel >= HELIUM_PRICE_CRITICAL_USD;
+  const helWarning = hel != null && Number.isFinite(hel) && hel >= HELIUM_PRICE_WARNING_USD;
 
   if (lock) {
     lines.push(
       isNo
-        ? '🚨 SYSTEMKOLLAPS: Aktiver nødplan for porteføljen.'
-        : '🚨 SYSTEM COLLAPSE: Activate emergency portfolio plan.'
+        ? '🚨 SYSTEMKOLLAPS: Fysisk kapasitet i Asia er brutt sammen. Aktiver nødplan.'
+        : '🚨 SYSTEM COLLAPSE: Physical capacity in Asia has collapsed. Activate emergency plan.'
     );
   } else if (red) {
     lines.push(
       isNo
-        ? 'Krisevarsel: Svært høy indeks og/eller kritisk lav nettreserve i Taiwan — dette overstyrer «fine» isolerte priser (f.eks. helium).'
-        : 'Crisis alert: Very high index and/or critically low Taiwan grid reserve — this overrides isolated «fine» prices (e.g. helium).'
+        ? '🔴 KRISENIVÅ: Aggregert stress er kritisk høyt. Flere uavhengige systemer (strøm/FX/gass) svikter samtidig.'
+        : '🔴 CRISIS LEVEL: Aggregate stress is critically high. Multiple independent systems failing simultaneously.'
     );
   }
 
   if (twdStrain) {
     lines.push(
       isNo
-        ? 'Kapitalflukt fra Taiwan pågår. Markedet ignorerer fysisk risiko.'
-        : 'Capital flight from Taiwan underway. The market is underpricing physical risk.'
+        ? '⚠️ Valuta-stress: Kapitalflukt fra Taiwan detektert. Markedet underpriser fysisk risiko.'
+        : '⚠️ Currency Strain: Capital flight from Taiwan detected. Market is underpricing physical risk.'
     );
   }
 
-  if (helHigh) {
+  if (helCritical) {
     lines.push(
       isNo
-        ? 'ADVARSEL: Kritisk mangel på industrigass detektert. Chip-forsyningskjeden er i fare.'
-        : 'WARNING: Critical industrial gas shortage detected. The chip supply chain is at risk.'
+        ? '🚫 KRITISK GASSPRESS: Helium-priser på nivåer som tvinger frem produksjonsstans i wafer-fabs.'
+        : '🚫 CRITICAL GAS PRESSURE: Helium prices at levels forcing production halts in wafer fabs.'
+    );
+  } else if (helWarning) {
+    lines.push(
+      isNo
+        ? '🟡 Gass-varsel: Helium-priser stiger uvanlig raskt. Forsyningskjeden strammer seg til.'
+        : '🟡 Gas Warning: Helium prices rising unusually fast. Supply chain is tightening.'
+    );
+  }
+
+  if (lines.length === 1 && !red && !lock) {
+    lines.push(
+      isNo
+        ? 'Info: Samlet kriseindeks er lav fordi øvrige fundamentale forhold (strøm/valuta) fortsatt er stabile.'
+        : 'Note: Overall crisis index remains low as other fundamentals (power/FX) are still stable.'
     );
   }
 

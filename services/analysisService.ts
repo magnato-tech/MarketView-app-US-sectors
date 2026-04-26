@@ -69,8 +69,15 @@ export const calculateRangeSummary = (
   // Finn benchmark (f.eks. SPY eller første index-lignende ticker)
   const benchmarkSymbol = summary.find(s => s.symbol === 'SPY' || s.symbol.startsWith('^'))?.symbol || summary[0]?.symbol;
     const benchmarkPrices = data.map(d => d[benchmarkSymbol] as number).filter(v => typeof v === 'number' && !isNaN(v));
+    
+    // Sjekk om dataene allerede er normalisert til % (starter på 0)
+    const isNormalized = benchmarkPrices.length > 0 && Math.abs(benchmarkPrices[0]) < 0.001;
+    
     const benchmarkReturn = benchmarkPrices.length >= 2 
-      ? (benchmarkPrices[benchmarkPrices.length-1] - benchmarkPrices[0]) / (benchmarkPrices[0] || 1) 
+      ? (isNormalized 
+          ? (benchmarkPrices[benchmarkPrices.length-1] / 100) // Allerede %, gjør om til desimal
+          : (benchmarkPrices[benchmarkPrices.length-1] - benchmarkPrices[0]) / (benchmarkPrices[0] || 1)
+        )
       : 0;
 
     const rows = summary.map(s => {

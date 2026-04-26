@@ -453,6 +453,7 @@ def sync_crisis_to_supabase(snap: Snapshot, asian_grid_lock: bool) -> bool:
                 "critical_sell": snap.critical_sell,
                 "asian_grid_lock": asian_grid_lock,
                 "taiwan_reserve_pct": snap.taiwan_reserve_pct,
+                "korea_reserve_pct": snap.korea_reserve_pct,
                 "helium_price_usd": snap.helium_price_usd,
                 "twd_usd": snap.twd_usd,
             },
@@ -493,9 +494,14 @@ def compute_crisis_index(
     critical_sell = False
 
     # Rule set (from your brief)
-    if helium_price is not None and helium_price > 160:
-        penalties += 18
-        notes.append("Helium > $160")
+    if helium_price is not None:
+        if helium_price >= 165:
+            penalties += 45  # Heavy weight for critical level
+            notes.append("Helium >= $165 (CRITICAL)")
+        elif helium_price >= 155:
+            penalties += 20
+            notes.append("Helium >= $155 (WARNING)")
+    
     if helium_roc_7d is not None and helium_roc_7d > 5:
         penalties += 18
         notes.append("Helium > 5% weekly rise")

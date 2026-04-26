@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { useCrisisEngine } from '../../contexts/CrisisEngineContext';
-import { HELIUM_PRICE_CRITICAL_USD, twdPerOneUsd } from '../../services/crisisEngineRules';
+import {
+  HELIUM_PRICE_CRITICAL_USD,
+  HELIUM_PRICE_WARNING_USD,
+  twdPerOneUsd,
+} from '../../services/crisisEngineRules';
 import { newestCrisisLogRow } from '../../services/crisisChartData';
 
 type CardTone = 'cyan' | 'violet' | 'danger';
@@ -28,13 +32,17 @@ export const CrisisKpiHighlightCards: React.FC<Props> = ({ isNo }) => {
     const twdStrain = twdPerOneUsd(engineRow?.twd_usd ?? null);
     const hel = engineRow?.helium_price_usd ?? null;
     const helSub =
-      hel != null && hel > HELIUM_PRICE_CRITICAL_USD
+      hel != null && hel >= HELIUM_PRICE_CRITICAL_USD
         ? isNo
-          ? `Over kritisk referanse (${HELIUM_PRICE_CRITICAL_USD} USD).`
-          : `Above critical reference (${HELIUM_PRICE_CRITICAL_USD} USD).`
-        : isNo
-          ? `ROC 24t: ${roc(latest?.helium_roc_24h_pct ?? null)} · ROC 7d: ${roc(latest?.helium_roc_7d_pct ?? null)}`
-          : `ROC 24h: ${roc(latest?.helium_roc_24h_pct ?? null)} · ROC 7d: ${roc(latest?.helium_roc_7d_pct ?? null)}`;
+          ? `Kritisk prisnivå (over ${HELIUM_PRICE_CRITICAL_USD} USD).`
+          : `Critical price level (above ${HELIUM_PRICE_CRITICAL_USD} USD).`
+        : hel != null && hel >= HELIUM_PRICE_WARNING_USD
+          ? isNo
+            ? `Advarsel: Pris presser marginer (${HELIUM_PRICE_WARNING_USD}+ USD).`
+            : `Warning: Price straining margins (${HELIUM_PRICE_WARNING_USD}+ USD).`
+          : isNo
+            ? `ROC 24t: ${roc(latest?.helium_roc_24h_pct ?? null)} · ROC 7d: ${roc(latest?.helium_roc_7d_pct ?? null)}`
+            : `ROC 24h: ${roc(latest?.helium_roc_24h_pct ?? null)} · ROC 7d: ${roc(latest?.helium_roc_7d_pct ?? null)}`;
 
     const idx = engineRow?.crisis_index;
     const idxTone: CardTone =
@@ -60,7 +68,12 @@ export const CrisisKpiHighlightCards: React.FC<Props> = ({ isNo }) => {
         title: isNo ? 'Helium NE Asia' : 'Helium NE Asia',
         value: fmt(hel, 2) + (hel != null ? ' USD' : ''),
         sub: helSub,
-        tone: hel != null && hel > HELIUM_PRICE_CRITICAL_USD ? 'danger' : 'cyan',
+        tone:
+          hel != null && hel >= HELIUM_PRICE_CRITICAL_USD
+            ? 'danger'
+            : hel != null && hel >= HELIUM_PRICE_WARNING_USD
+              ? 'violet'
+              : 'cyan',
       },
       {
         id: 'tw',

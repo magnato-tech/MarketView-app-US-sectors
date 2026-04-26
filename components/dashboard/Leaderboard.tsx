@@ -26,7 +26,7 @@ type HoldingSpotlightRow = {
   changePct: number;
 };
 
-const HOLDINGS_FETCH_CAP = 14;
+const HOLDINGS_FETCH_CAP = 30; // Økt fra 14 for å fange opp en større portefølje
 
 const emptyMetrics = (): DerivedMetrics => ({
   rank: 0,
@@ -100,8 +100,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     [sectorRows]
   );
 
+  const winner = sortedSectors[0];
+
   const topEtfUnderSectorWinner = useMemo(() => {
-    const winner = sortedSectors[0];
     if (!winner) return null;
     const childSyms = new Set(
       TICKERS.filter(t => t.category === 'ETF' && t.parentSymbol === winner.symbol).map(t => t.symbol)
@@ -110,7 +111,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     const childRows = universeRows.filter(r => childSyms.has(r.symbol));
     if (childRows.length === 0) return null;
     return [...childRows].sort((a, b) => b.changePct - a.changePct)[0];
-  }, [sortedSectors, universeRows]);
+  }, [winner, universeRows]);
 
   /** Når vinner-ETF mangler aksjebeholdninger (f.eks. USO), fullfør pyramiden med de to sterkeste søsken-ETF-ene under samme sektor. */
   const topSiblingEtfRows = useMemo((): LeaderboardRow[] => {
@@ -122,7 +123,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     ).map(t => t.symbol);
     if (siblingSyms.length === 0) return [];
     const rows = universeRows.filter(r => siblingSyms.includes(r.symbol));
-    return [...rows].sort((a, b) => b.changePct - a.changePct).slice(0, 2);
+    return [...rows].sort((a, b) => b.changePct - a.changePct).slice(0, 4);
   }, [sortedSectors, topEtfUnderSectorWinner, universeRows]);
 
   const [holdingSpotlight, setHoldingSpotlight] = useState<{
@@ -132,7 +133,19 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   }>({ loading: false, error: false, rows: [] });
 
   useEffect(() => {
-    const etfSym = topEtfUnderSectorWinner?.symbol;
+    // VIKTIG: Hierarki-logikk for Spotlight:
+    // 1. Hvis under-ETF-en har aksjer (f.eks. SOXX), vis de 4 sterkeste aksjene der.
+    // 2. Hvis ikke (f.eks. USO), sjekk om hovedsektoren (DBC) har aksjer.
+    // 3. Ellers vis ingenting (fallback til søsken-ETFer skjer i render).
+    
+    let etfSym = topEtfUnderSectorWinner?.symbol;
+    if (etfSym && getEtfHoldings(etfSym).length === 0 && winner) {
+      // Fallback til sektorens egne definerte aksjer hvis sub-fondet er tomt (f.eks. olje-futures)
+      if (getEtfHoldings(winner.symbol).length > 0) {
+        etfSym = winner.symbol;
+      }
+    }
+
     if (!etfSym || !hasETFDetails(etfSym)) {
       setHoldingSpotlight({ loading: false, error: false, rows: [] });
       return;
@@ -148,12 +161,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
       .then(({ summary: fetched }) => {
         if (cancelled) return;
         const sorted = [...fetched].sort((a, b) => b.percentChange - a.percentChange);
-        const top2 = sorted.slice(0, 2).map(s => ({
+        const top4 = sorted.slice(0, 4).map(s => ({
           symbol: s.symbol,
           name: getHoldingName(s.symbol) || s.name,
           changePct: s.percentChange,
         }));
-        setHoldingSpotlight({ loading: false, error: false, rows: top2 });
+        setHoldingSpotlight({ loading: false, error: false, rows: top4 });
       })
       .catch(() => {
         if (!cancelled) setHoldingSpotlight({ loading: false, error: true, rows: [] });
@@ -161,7 +174,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [topEtfUnderSectorWinner?.symbol, period, interval]);
+  }, [topEtfUnderSectorWinner?.symbol, winner, period, interval]);
 
   if (loading && summary.length === 0) {
     return (
@@ -199,9 +212,16 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     </div>
   );
 
-  const winner = sortedSectors[0];
-  const etfSym = topEtfUnderSectorWinner?.symbol;
-  const hasStockHoldings = Boolean(etfSym && getEtfHoldings(etfSym).length > 0);
+  const subWinnerSym = topEtfUnderSectorWinner?.symbol;
+  let spotlightSym = subWinnerSym;
+  
+  if (subWinnerSym && getEtfHoldings(subWinnerSym).length === 0 && winner) {
+    if (getEtfHoldings(winner.symbol).length > 0) {
+      spotlightSym = winner.symbol;
+    }
+  }
+
+  const hasStockHoldings = Boolean(spotlightSym && getEtfHoldings(spotlightSym).length > 0);
 
   return (
     <div className="space-y-6">
@@ -252,7 +272,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
             <p className={`text-[11px] font-semibold mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
               {t('leaderboard.subWinner.context', { sector: winner.name })}
             </p>
-            <div className="flex justify-between items-center gap-3">
+            
+            <div className="flex justify-between items-center gap-3 mb-3 border-b border-white/5 pb-3">
               <div className="min-w-0">
                 <div className="text-sm font-bold dark:text-slate-100 light:text-slate-800 truncate">
                   {topEtfUnderSectorWinner.name}
@@ -265,59 +286,48 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
               </span>
             </div>
 
-            <div
-              className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}
-            >
+            <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/90 mb-2">
+              {hasStockHoldings ? t('leaderboard.subWinnerHoldings.badge') : t('leaderboard.subWinnerHoldings.siblingBadge')}
+            </p>
+            
+            {/* Vi viser enten aksjer eller søsken-ETF-er i samme grid-layout */}
+            <div className="mt-2">
               {hasStockHoldings ? (
                 <>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/90 mb-0.5">
-                    {t('leaderboard.subWinnerHoldings.badge')}
-                  </p>
-                  <p className={`text-[10px] font-medium mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
-                    {t('leaderboard.subWinnerHoldings.context', { n: HOLDINGS_FETCH_CAP })}
-                  </p>
                   {holdingSpotlight.loading && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <p className="text-[10px] text-slate-500 col-span-full -mb-1 sm:mb-0">
-                        {t('leaderboard.subWinnerHoldings.loading')}
-                      </p>
-                      {[0, 1].map(i => (
+                      {[0, 1, 2, 3].map(i => (
                         <div
                           key={i}
-                          className={`rounded-lg px-3 py-2.5 animate-pulse ${isDarkMode ? 'bg-slate-800/60' : 'bg-slate-200/80'}`}
+                          className={`rounded-lg px-3 py-2 animate-pulse ${isDarkMode ? 'bg-slate-800/60' : 'bg-slate-200/80'}`}
                         >
-                          <div className={`h-3 w-20 rounded mb-2 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-300'}`} />
-                          <div className={`h-5 w-14 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-slate-300'}`} />
+                          <div className={`h-3 w-16 rounded mb-1 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-300'}`} />
+                          <div className={`h-4 w-12 rounded ${isDarkMode ? 'bg-slate-700' : 'bg-slate-300'}`} />
                         </div>
                       ))}
                     </div>
                   )}
                   {!holdingSpotlight.loading && holdingSpotlight.error && (
-                    <p className={`text-[11px] ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>
-                      {t('leaderboard.subWinnerHoldings.error')}
-                    </p>
+                    <p className="text-[10px] text-rose-400">Kunne ikke laste aksjedata</p>
                   )}
                   {!holdingSpotlight.loading && !holdingSpotlight.error && holdingSpotlight.rows.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {holdingSpotlight.rows.map(row => (
                         <div
                           key={row.symbol}
-                          className={`rounded-lg border px-3 py-2.5 min-w-0 ${
-                            isDarkMode
-                              ? 'bg-slate-950/40 border-slate-700/80'
-                              : 'bg-white border-slate-200'
+                          className={`rounded-lg border px-3 py-2 min-w-0 ${
+                            isDarkMode ? 'bg-slate-950/40 border-slate-700/80' : 'bg-white border-slate-200'
                           }`}
                         >
-                          <div className="flex justify-between items-start gap-2">
+                          <div className="flex justify-between items-center gap-2">
                             <div className="min-w-0">
-                              <div className={`text-xs font-bold truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                              <div className={`text-[11px] font-bold truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
                                 {row.name}
                               </div>
-                              <span className="text-[10px] font-mono text-slate-500">{row.symbol}</span>
+                              <span className="text-[9px] font-mono text-slate-500">{row.symbol}</span>
                             </div>
-                            <span className={`text-sm font-black font-mono shrink-0 ${getStrongTrendColorClass(row.changePct)}`}>
-                              {row.changePct > 0 ? '+' : ''}
-                              {row.changePct}%
+                            <span className={`text-xs font-black font-mono shrink-0 ${getStrongTrendColorClass(row.changePct)}`}>
+                              {row.changePct > 0 ? '+' : ''}{row.changePct}%
                             </span>
                           </div>
                         </div>
@@ -326,51 +336,28 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                   )}
                 </>
               ) : (
-                <>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/90 mb-0.5">
-                    {t('leaderboard.subWinnerHoldings.siblingBadge')}
-                  </p>
-                  <p className={`text-[10px] font-medium mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
-                    {t('leaderboard.subWinnerHoldings.siblingContext', { sector: winner.name })}
-                  </p>
-                  {topSiblingEtfRows.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {topSiblingEtfRows.map(row => (
-                        <div
-                          key={row.symbol}
-                          className={`rounded-lg border px-3 py-2.5 min-w-0 ${
-                            isDarkMode
-                              ? 'bg-slate-950/40 border-slate-700/80'
-                              : 'bg-white border-slate-200'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start gap-2">
-                            <div className="min-w-0">
-                              <div className={`text-xs font-bold truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
-                                {row.name}
-                              </div>
-                              <span className="text-[10px] font-mono text-slate-500">{row.symbol}</span>
-                            </div>
-                            <span className={`text-sm font-black font-mono shrink-0 ${getStrongTrendColorClass(row.changePct)}`}>
-                              {row.changePct > 0 ? '+' : ''}
-                              {row.changePct}%
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {topSiblingEtfRows.map(row => (
                     <div
-                      className={`rounded-lg border border-dashed px-3 py-3 text-center sm:col-span-2 ${
-                        isDarkMode ? 'border-slate-700 bg-slate-950/30' : 'border-slate-300 bg-slate-50'
+                      key={row.symbol}
+                      className={`rounded-lg border px-3 py-2 min-w-0 ${
+                        isDarkMode ? 'bg-slate-950/40 border-slate-700/80' : 'bg-white border-slate-200'
                       }`}
                     >
-                      <p className={`text-[11px] leading-snug ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                        {t('leaderboard.subWinnerHoldings.nonEquityHint')}
-                      </p>
+                      <div className="flex justify-between items-center gap-2">
+                        <div className="min-w-0">
+                          <div className={`text-[11px] font-bold truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                            {row.name}
+                          </div>
+                          <span className="text-[9px] font-mono text-slate-500">{row.symbol}</span>
+                        </div>
+                        <span className={`text-xs font-black font-mono shrink-0 ${getStrongTrendColorClass(row.changePct)}`}>
+                          {row.changePct > 0 ? '+' : ''}{row.changePct}%
+                        </span>
+                      </div>
                     </div>
-                  )}
-                </>
+                  ))}
+                </div>
               )}
             </div>
           </div>

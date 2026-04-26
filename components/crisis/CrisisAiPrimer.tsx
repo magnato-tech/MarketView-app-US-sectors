@@ -15,7 +15,7 @@ export const CrisisAiPrimer: React.FC<Props> = ({ isNo }) => (
       <ul className="mt-2 space-y-1.5 text-sm text-slate-300 light:text-slate-700 leading-snug list-none">
         <li>
           <span className="font-bold text-slate-100 light:text-slate-900">Crisis Index:</span> 0–100, samlet fysisk
-          stress — ikke aksjekurs. Høyere = flere røde flagg samtidig.
+          stress — ikke aksjekurs. En lav verdi betyr at systemet som helhet er stabilt, selv om enkelt-KPIer kan være i varslingssonen.
         </li>
         <li>
           <span className="font-bold text-slate-100 light:text-slate-900">Taiwan reserve %:</span> margin i
@@ -38,7 +38,7 @@ export const CrisisAiPrimer: React.FC<Props> = ({ isNo }) => (
       <ul className="mt-2 space-y-1.5 text-sm text-slate-300 light:text-slate-700 leading-snug list-none">
         <li>
           <span className="font-bold text-slate-100 light:text-slate-900">Crisis index:</span> 0–100 combined physical
-          stress — not a stock price. Higher = more red flags at once.
+          stress — not a stock price. A low value means the system is overall stable, even if individual KPIs are in warning zones.
         </li>
         <li>
           <span className="font-bold text-slate-100 light:text-slate-900">Taiwan reserve %:</span> spare grid margin;
