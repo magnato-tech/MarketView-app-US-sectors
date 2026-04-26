@@ -109,11 +109,11 @@ export const CrisisKpiHighlightCards: React.FC<Props> = ({ isNo }) => {
             c.id === 'ci' ? 'sm:col-span-2' : ''
           }`}
         >
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{c.title}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 light:text-slate-500">{c.title}</p>
           <p className="mt-2 font-mono text-3xl sm:text-4xl font-black tabular-nums tracking-tight text-slate-50 light:text-slate-900">
             {c.value}
           </p>
-          <p className="mt-3 text-sm leading-relaxed text-slate-400 light:text-slate-600">{c.sub}</p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-400 light:text-slate-500">{c.sub}</p>
         </div>
       ))}
     </div>

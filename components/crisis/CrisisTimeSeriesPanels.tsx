@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  Brush,
   CartesianGrid,
   ComposedChart,
   Line,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -19,11 +21,22 @@ type Props = { isNo: boolean };
 export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
   const { isDarkMode } = useDashboard();
   const { crisisLogRows, crisisLogLoading, crisisLogError } = useCrisisEngine();
+  const [syncIndex, setSyncIndex] = useState<number | undefined>(undefined);
 
   const points = useMemo(() => rowsToChartPoints(crisisLogRows), [crisisLogRows]);
+  const lastPoint = points.length > 0 ? points[points.length - 1] : null;
+
   const grid = isDarkMode ? '#1e293b' : '#e2e8f0';
   const axis = isDarkMode ? '#64748b' : '#64748b';
   const tooltipBg = isDarkMode ? '#0f172a' : '#f8fafc';
+
+  const onMouseMove = (state: any) => {
+    if (state?.activeTooltipIndex !== undefined) {
+      setSyncIndex(state.activeTooltipIndex);
+    }
+  };
+
+  const onMouseLeave = () => setSyncIndex(undefined);
 
   if (crisisLogError) {
     return (
@@ -36,8 +49,17 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
 
   if (crisisLogLoading && points.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-700 p-8 text-center text-sm text-slate-500">
-        {isNo ? 'Laster tidsserier…' : 'Loading time series…'}
+      <div className="space-y-4">
+        <div className="rounded-xl border border-slate-700/80 bg-slate-950/40 p-3 h-[280px] animate-pulse flex items-center justify-center">
+          <div className="text-slate-600 font-black uppercase tracking-widest text-[10px]">
+            {isNo ? 'Laster tidsserier…' : 'Loading time series…'}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-700/80 bg-slate-950/40 p-3 h-[240px] animate-pulse flex items-center justify-center">
+          <div className="text-slate-600 font-black uppercase tracking-widest text-[10px]">
+            {isNo ? 'Henter historikk…' : 'Fetching history…'}
+          </div>
+        </div>
       </div>
     );
   }
@@ -75,15 +97,30 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
         <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400/90 mb-2 px-1">
           {isNo ? 'Crisis Index over tid' : 'Crisis index over time'}
         </p>
-        <div className="h-[220px] w-full min-h-[200px]">
+        <div className="h-[260px] w-full min-h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <ComposedChart
+              data={points}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              onMouseMove={onMouseMove}
+              onMouseLeave={onMouseLeave}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
               <XAxis dataKey="label" tick={{ fill: axis, fontSize: 9 }} interval="preserveStartEnd" minTickGap={24} />
               <YAxis domain={[0, 100]} tick={{ fill: axis, fontSize: 9 }} width={32} />
-              <Tooltip content={tip} />
+              <Tooltip content={tip} activeIndex={syncIndex} />
               <ReferenceLine y={50} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.6} />
               <ReferenceLine y={75} stroke="#f43f5e" strokeDasharray="4 4" strokeOpacity={0.7} />
+              {lastPoint && lastPoint.crisis_index != null && (
+                <ReferenceDot
+                  x={lastPoint.label}
+                  y={lastPoint.crisis_index}
+                  r={3}
+                  fill="#22d3ee"
+                  stroke="#0f172a"
+                  strokeWidth={1}
+                />
+              )}
               <Line
                 type="monotone"
                 dataKey="crisis_index"
@@ -91,7 +128,17 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
                 strokeWidth={2}
                 dot={false}
                 connectNulls
+                isAnimationActive={false}
               />
+              {points.length > 50 && (
+                <Brush
+                  dataKey="label"
+                  height={20}
+                  stroke="#334155"
+                  fill="#0f172a"
+                  startIndex={Math.max(0, points.length - 100)}
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -103,13 +150,40 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
         </p>
         <div className="h-[220px] w-full min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={points} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <ComposedChart
+              data={points}
+              margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+              onMouseMove={onMouseMove}
+              onMouseLeave={onMouseLeave}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
               <XAxis dataKey="label" tick={{ fill: axis, fontSize: 9 }} interval="preserveStartEnd" minTickGap={24} />
-              <YAxis yAxisId="L" tick={{ fill: axis, fontSize: 9 }} width={40} />
-              <YAxis yAxisId="R" orientation="right" tick={{ fill: axis, fontSize: 9 }} width={40} />
-              <Tooltip content={tip} />
+              <YAxis yAxisId="L" tick={{ fill: axis, fontSize: 9 }} width={40} domain={['auto', 'auto']} />
+              <YAxis yAxisId="R" orientation="right" tick={{ fill: axis, fontSize: 9 }} width={40} domain={[0, 15]} />
+              <Tooltip content={tip} activeIndex={syncIndex} />
               <ReferenceLine yAxisId="R" y={6} stroke="#f43f5e" strokeDasharray="4 4" strokeOpacity={0.7} />
+              {lastPoint && lastPoint.helium_price_usd != null && (
+                <ReferenceDot
+                  yAxisId="L"
+                  x={lastPoint.label}
+                  y={lastPoint.helium_price_usd}
+                  r={3}
+                  fill="#a78bfa"
+                  stroke="#0f172a"
+                  strokeWidth={1}
+                />
+              )}
+              {lastPoint && lastPoint.taiwan_reserve_pct != null && (
+                <ReferenceDot
+                  yAxisId="R"
+                  x={lastPoint.label}
+                  y={lastPoint.taiwan_reserve_pct}
+                  r={3}
+                  fill="#34d399"
+                  stroke="#0f172a"
+                  strokeWidth={1}
+                />
+              )}
               <Line
                 yAxisId="L"
                 type="monotone"
@@ -119,6 +193,7 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
                 strokeWidth={2}
                 dot={false}
                 connectNulls
+                isAnimationActive={false}
               />
               <Line
                 yAxisId="R"
@@ -129,6 +204,7 @@ export const CrisisTimeSeriesPanels: React.FC<Props> = ({ isNo }) => {
                 strokeWidth={2}
                 dot={false}
                 connectNulls
+                isAnimationActive={false}
               />
             </ComposedChart>
           </ResponsiveContainer>

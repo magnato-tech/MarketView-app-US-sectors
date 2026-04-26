@@ -17,54 +17,92 @@ export const CrisisTickerStrip: React.FC<Props> = ({ isNo }) => {
         label: isNo ? 'Crisis Index' : 'Crisis Index',
         v: engineRow?.crisis_index != null ? fmt(Number(engineRow.crisis_index), 1) : '—',
         accent: 'cyan' as const,
+        raw: engineRow?.crisis_index ?? null,
       },
       {
         k: 'tw',
         label: isNo ? 'Taiwan res.' : 'TW reserve',
         v: fmt(engineRow?.taiwan_reserve_pct ?? null, 1) + (engineRow?.taiwan_reserve_pct != null ? '%' : ''),
         accent: 'violet' as const,
+        raw: engineRow?.taiwan_reserve_pct ?? null,
       },
       {
         k: 'he',
         label: isNo ? 'Helium' : 'Helium',
         v: fmt(engineRow?.helium_price_usd ?? null, 2) + (engineRow?.helium_price_usd != null ? ' USD' : ''),
         accent: 'cyan' as const,
+        raw: engineRow?.helium_price_usd ?? null,
       },
       {
         k: 'fx',
         label: isNo ? 'TWD/USD' : 'TWD/USD',
         v: fmt(engineRow?.twd_usd ?? null, 5),
         accent: 'violet' as const,
+        raw: engineRow?.twd_usd ?? null,
       },
       {
         k: 'tp',
         label: isNo ? 'TWD per 1 USD' : 'TWD per 1 USD',
         v: twdPerUsd != null ? twdPerUsd.toFixed(2) : '—',
         accent: 'cyan' as const,
+        raw: twdPerUsd,
       },
     ];
   }, [engineRow, isNo]);
 
+  const { crisisLogRows } = useCrisisEngine();
+  const prevRow = crisisLogRows.length >= 2 ? crisisLogRows[1] : null;
+
   return (
     <div className="rounded-xl border border-cyan-500/25 bg-slate-950/80 light:bg-white light:border-cyan-600/20 px-3 py-3 shadow-[0_0_24px_-8px_rgba(34,211,238,0.35)]">
       <div className="flex flex-wrap gap-3 justify-between items-stretch">
-        {cells.map(c => (
-          <div
-            key={c.k}
-            className={`min-w-[100px] flex-1 rounded-lg border px-3 py-2 ${
-              c.accent === 'cyan'
-                ? 'border-cyan-500/40 bg-cyan-500/5'
-                : 'border-violet-500/35 bg-violet-500/5'
-            }`}
-          >
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 light:text-slate-600">
-              {c.label}
-            </p>
-            <p className="mt-1 font-mono text-lg font-bold tabular-nums text-slate-100 light:text-slate-900 tracking-tight">
-              {c.v}
-            </p>
-          </div>
-        ))}
+        {cells.map(c => {
+          let delta: number | null = null;
+          if (prevRow) {
+            const prevVal =
+              c.k === 'idx'
+                ? prevRow.crisis_index
+                : c.k === 'tw'
+                  ? prevRow.taiwan_reserve_pct
+                  : c.k === 'he'
+                    ? prevRow.helium_price_usd
+                    : c.k === 'fx'
+                      ? prevRow.twd_usd
+                      : c.k === 'tp'
+                        ? twdPerOneUsd(prevRow.twd_usd)
+                        : null;
+            if (prevVal != null && c.raw != null && prevVal !== 0) {
+              delta = c.raw - prevVal;
+            }
+          }
+
+          return (
+            <div
+              key={c.k}
+              className={`min-w-[100px] flex-1 rounded-lg border px-3 py-2 ${
+                c.accent === 'cyan'
+                  ? 'border-cyan-500/40 bg-cyan-500/5'
+                  : 'border-violet-500/35 bg-violet-500/5'
+              }`}
+            >
+              <div className="flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 light:text-slate-500">
+                  {c.label}
+                </p>
+                {delta != null && Math.abs(delta) > 0.00001 && (
+                  <span
+                    className={`text-[9px] font-bold font-mono ${delta > 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                  >
+                    {delta > 0 ? '▲' : '▼'}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 font-mono text-xl font-bold tabular-nums text-slate-100 light:text-slate-900 tracking-tight">
+                {c.v}
+              </p>
+            </div>
+          );
+        })}
       </div>
       {engineRow?.critical_sell ? (
         <p className="mt-2 text-center text-[10px] font-black uppercase tracking-[0.2em] text-rose-400 animate-pulse">
