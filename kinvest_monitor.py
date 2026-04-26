@@ -4,7 +4,7 @@ KInvest Crisis Engine
 ---------------------
 Tracks physical-economy KPIs for semiconductor stress signals:
 - Taiwan grid reserve (Taipower)
-- South Korea grid reserve (KPX)
+- South Korea grid reserve (KPX; HTTPS deretter HTTP-fallback)
 - Helium NE Asia price (IMARC, with CSV/API placeholder fallback)
 - JKM LNG spot proxy (Twelve Data)
 - TWD/USD FX (Alpha Vantage)
@@ -56,7 +56,11 @@ from rich.text import Text
 console = Console()
 
 TAIPOWER_URL = "https://www.taipower.com.tw/2764/2826/2829/2830/simpleList"
-KPX_URL = "http://power.kpx.or.kr/powerinfo_en.php"
+# Prøv HTTPS først (nogle netværk blokerer eller hænger på ren HTTP).
+KPX_URLS = (
+    "https://power.kpx.or.kr/powerinfo_en.php",
+    "http://power.kpx.or.kr/powerinfo_en.php",
+)
 IMARC_HELIUM_URL = "https://www.imarcgroup.com/helium-pricing-report"
 TWELVE_TIME_SERIES_URL = "https://api.twelvedata.com/time_series"
 ALPHA_VANTAGE_FX_URL = "https://www.alphavantage.co/query"
@@ -170,14 +174,21 @@ def fetch_taiwan_reserve_pct() -> Optional[float]:
 
 
 def fetch_korea_reserve_pct() -> Optional[float]:
-    try:
-        html = _fetch_html(KPX_URL)
-        soup = BeautifulSoup(html, "html.parser")
-        page_text = soup.get_text(" ", strip=True)
-        return _extract_first_percent_near_keywords(page_text, ["Supply Reserve Ratio", "Reserve Ratio", "reserve"])
-    except Exception as exc:
-        console.print(f"[yellow]KPX scrape warning:[/yellow] {exc}")
-        return None
+    last_exc: Optional[Exception] = None
+    for url in KPX_URLS:
+        try:
+            html = _fetch_html(url)
+            soup = BeautifulSoup(html, "html.parser")
+            page_text = soup.get_text(" ", strip=True)
+            return _extract_first_percent_near_keywords(
+                page_text, ["Supply Reserve Ratio", "Reserve Ratio", "reserve"]
+            )
+        except Exception as exc:
+            last_exc = exc
+            continue
+    if last_exc is not None:
+        console.print(f"[yellow]KPX scrape warning:[/yellow] {last_exc}")
+    return None
 
 
 def fetch_helium_price_from_imarc() -> Optional[float]:
@@ -328,6 +339,40 @@ def compute_time_to_10_week_void() -> str:
 _supabase_client = None
 
 
+def _import_supabase_create_client():
+    """
+    PyPI-pakken «supabase» skygges av prosjektmappa `supabase/` (SQL-filer).
+    Last den ekte klienten uten at lokal mappe er på sys.path.
+    """
+    import importlib
+    import sys
+
+    root = Path(__file__).resolve().parent
+
+    def entry_is_project_root(p: str) -> bool:
+        if not p:
+            try:
+                return Path.cwd().resolve() == root
+            except OSError:
+                return False
+        try:
+            return Path(p).resolve() == root
+        except OSError:
+            return False
+
+    for key in list(sys.modules):
+        if key == "supabase" or key.startswith("supabase."):
+            del sys.modules[key]
+
+    old_path = sys.path[:]
+    try:
+        sys.path[:] = [p for p in sys.path if not entry_is_project_root(p)]
+        mod = importlib.import_module("supabase")
+        return mod.create_client
+    finally:
+        sys.path[:] = old_path
+
+
 def get_supabase_service_client():
     """Service role-klient for skriving til crisis_log / engine_status."""
     global _supabase_client
@@ -344,10 +389,16 @@ def get_supabase_service_client():
         _supabase_client = False
         return None
     try:
-        from supabase import create_client  # type: ignore
-
+        create_client = _import_supabase_create_client()
         _supabase_client = create_client(url, key)
         return _supabase_client
+    except ModuleNotFoundError as exc:
+        console.print(
+            f"[yellow]Supabase init feilet:[/yellow] {exc} "
+            "(kjør: [bold]pip install -r requirements-monitor.txt[/bold])"
+        )
+        _supabase_client = False
+        return None
     except Exception as exc:
         console.print(f"[yellow]Supabase init feilet:[/yellow] {exc}")
         _supabase_client = False
