@@ -3,43 +3,21 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useCrisisEngine } from '../contexts/CrisisEngineContext';
 import { HEARTBEAT_OK_MINUTES } from '../services/crisisEngineRules';
 import { AnalystVerdict } from './AnalystVerdict';
-
-const systemPrompt = `Jeg vil bygge en "Crisis Monitor" modul for min investeringsplattform, KInvest.
-
-Programmet skal tracke ledende KPI-er for å forutse et krakk i halvlederindustrien basert på energikrisen i 2026.
-
-1. Datainnhenting:
-- Hent JKM LNG Spot Price og Brent Crude (Twelve Data API)
-- Hent TWD/USD vekslingskurs
-- Scrape Taipower Operating Reserve % fra taipower.com.tw
-- Hent Helium Spot Price (placeholder-funksjon via CSV/API)
-
-2. Lagring og tracking:
-- Logg alle verdier hver time i lokal SQLite
-- Kalkuler Rate of Change (ROC) over siste 24 timer
-
-3. Varslingslogikk (Kill Switch):
-- Lag Health Score fra 0-100
-- Send CRITICAL_SELL (rød tekst) når:
-  - Helium-pris stiger > 10% på 24t
-  - Taipower Reserve faller under 6%
-  - TWD svekker seg > 2% samtidig som Nasdaq er flat eller opp
-
-4. Visualisering:
-- Terminal-dashboard med Rich som viser KPI-tabell og status
-- Skriv modulær, robust kode med feilhåndtering
-
-Ekstra:
-Health Score = (Grid_weight * Reserve) + (Gas_weight * Price_inv) + (FX_weight * Stability)
-Alarm: Delta Helium_24h > 15% => Immediate Liquidation Warning`;
+import { CRISIS_DEVELOPER_SYSTEM_PROMPT } from '../content/crisisDeveloperPrompt';
+import { CrisisTickerStrip } from './crisis/CrisisTickerStrip';
+import { CrisisIndexBand } from './crisis/CrisisIndexBand';
+import { CrisisTimeSeriesPanels } from './crisis/CrisisTimeSeriesPanels';
+import { CrisisSparklineRow } from './crisis/CrisisSparklineRow';
+import { CrisisKpiHighlightCards } from './crisis/CrisisKpiHighlightCards';
+import { CrisisStackNarrative } from './crisis/CrisisStackNarrative';
 
 export const CrisisMonitorPage: React.FC = () => {
   const { language } = useLanguage();
   const isNo = language === 'no';
-  const [instructionsOpen, setInstructionsOpen] = useState(true);
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const [devDocOpen, setDevDocOpen] = useState(false);
 
-  const { supabaseReady, engineRow, realtimeState, heartbeatFresh, operational, visualTier } =
-    useCrisisEngine();
+  const { supabaseReady, engineRow, realtimeState, heartbeatFresh, visualTier } = useCrisisEngine();
 
   const heartbeatTitle = useMemo(() => {
     if (!heartbeatFresh) {
@@ -86,7 +64,7 @@ export const CrisisMonitorPage: React.FC = () => {
   }, [heartbeatFresh, visualTier, isNo, heartbeatAgeHint]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6 pb-10">
       <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 to-orange-500/10 p-6">
         <p className="text-[10px] uppercase tracking-[0.2em] font-black text-rose-400">
           {isNo ? 'Kinvest Moduler' : 'Kinvest Modules'}
@@ -96,8 +74,8 @@ export const CrisisMonitorPage: React.FC = () => {
         </h2>
         <p className="mt-2 text-sm text-slate-300 dark:text-slate-300 light:text-slate-700">
           {isNo
-            ? 'Live status fra Supabase (engine_status + Realtime). Kjør kinvest_monitor.py med service role for å skrive KPI-rader.'
-            : 'Live status from Supabase (engine_status + Realtime). Run kinvest_monitor.py with the service role to write KPI rows.'}
+            ? 'Fysiske ledende KPI-er, tidsserier fra Supabase og sanntids heartbeat — bygget for å lese bunnen av kaka før toppen av markedet rekker å ompris.'
+            : 'Physical leading KPIs, Supabase time series and a realtime heartbeat — built to read the bottom of the stack before the market reprices the top.'}
         </p>
       </div>
 
@@ -106,6 +84,18 @@ export const CrisisMonitorPage: React.FC = () => {
           {isNo
             ? 'Supabase er ikke konfigurert i frontend. Sett VITE_SUPABASE_URL og VITE_SUPABASE_ANON_KEY (eller SUPABASE_URL / SUPABASE_ANON_KEY) og restart Vite.'
             : 'Supabase is not configured for the frontend. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or SUPABASE_URL / SUPABASE_ANON_KEY) and restart Vite.'}
+        </div>
+      ) : null}
+
+      {supabaseReady ? <CrisisStackNarrative isNo={isNo} /> : null}
+
+      {supabaseReady ? (
+        <div className="space-y-4">
+          <CrisisTickerStrip isNo={isNo} />
+          <CrisisKpiHighlightCards isNo={isNo} />
+          <CrisisIndexBand isNo={isNo} />
+          <CrisisTimeSeriesPanels isNo={isNo} />
+          <CrisisSparklineRow isNo={isNo} />
         </div>
       ) : null}
 
@@ -228,13 +218,24 @@ export const CrisisMonitorPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl border border-slate-800 dark:border-slate-800 light:border-slate-200 bg-slate-900 dark:bg-slate-900 light:bg-white p-5">
-          <h3 className="text-xs uppercase tracking-widest font-black text-slate-400 mb-3">
-            {isNo ? 'System Prompt til Cursor' : 'System Prompt for Cursor'}
-          </h3>
-          <pre className="whitespace-pre-wrap text-[12px] leading-relaxed text-slate-200 dark:text-slate-200 light:text-slate-800 font-mono">
-            {systemPrompt}
-          </pre>
+        <div className="rounded-2xl border border-slate-800 dark:border-slate-800 light:border-slate-200 bg-slate-900 dark:bg-slate-900 light:bg-white overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setDevDocOpen(v => !v)}
+            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-800/40 light:hover:bg-slate-50 transition-colors"
+          >
+            <h3 className="text-xs uppercase tracking-widest font-black text-slate-400">
+              {isNo ? 'System Prompt (utvikler)' : 'System prompt (developer)'}
+            </h3>
+            <span className="text-xs font-bold text-slate-500">{devDocOpen ? '−' : '+'}</span>
+          </button>
+          {devDocOpen ? (
+            <div className="px-5 pb-5 border-t border-slate-800 light:border-slate-200">
+              <pre className="whitespace-pre-wrap text-[12px] leading-relaxed text-slate-200 dark:text-slate-200 light:text-slate-800 font-mono">
+                {CRISIS_DEVELOPER_SYSTEM_PROMPT}
+              </pre>
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-4">
