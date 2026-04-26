@@ -10,6 +10,7 @@ import { CrisisTimeSeriesPanels } from './crisis/CrisisTimeSeriesPanels';
 import { CrisisSparklineRow } from './crisis/CrisisSparklineRow';
 import { CrisisKpiHighlightCards } from './crisis/CrisisKpiHighlightCards';
 import { CrisisStackNarrative } from './crisis/CrisisStackNarrative';
+import { CrisisAiPrimer } from './crisis/CrisisAiPrimer';
 
 export const CrisisMonitorPage: React.FC = () => {
   const { language } = useLanguage();
@@ -78,6 +79,8 @@ export const CrisisMonitorPage: React.FC = () => {
             : 'Physical leading KPIs, Supabase time series and a realtime heartbeat — built to read the bottom of the stack before the market reprices the top.'}
         </p>
       </div>
+
+      <CrisisAiPrimer isNo={isNo} />
 
       {!supabaseReady ? (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
