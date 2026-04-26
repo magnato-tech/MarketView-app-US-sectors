@@ -33,3 +33,7 @@ dist-ssr
 data/factory/*.json
 data/factory/market-data/*.json
 data/cache/*.json
+
+# Crisis monitor local runtime
+kinvest_crisis.db
+public/kinvest-crisis-status.json

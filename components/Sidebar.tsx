@@ -1,8 +1,9 @@
-
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TICKERS } from '../constants';
+import { useCrisisEngine } from '../contexts/CrisisEngineContext';
 import { useDashboard } from '../contexts/DashboardContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { CrisisStatusDot } from './CrisisStatusDot';
 import type { Language } from '../i18n/types';
 import type { DashboardTab } from '../contexts/DashboardContext';
 
@@ -29,6 +30,23 @@ const Sidebar: React.FC<SidebarProps> = () => {
     setActiveTab
   } = useDashboard();
   const { language, setLanguage, t } = useLanguage();
+  const { supabaseReady, visualTier } = useCrisisEngine();
+  const crisisDotTitle = useMemo(() => {
+    const isNo = language === 'no';
+    switch (visualTier) {
+      case 'offline':
+        return isNo ? 'Crisis Monitor: ingen fersk motor' : 'Crisis Monitor: engine stale or offline';
+      case 'grid_lock':
+        return 'Asian Grid Lock';
+      case 'red':
+        return isNo ? 'Rød KPI-sone' : 'Red KPI band';
+      case 'yellow':
+        return isNo ? 'Gul advarsel' : 'Yellow alert';
+      case 'green':
+      default:
+        return isNo ? 'Crisis Monitor: OPERATIONAL' : 'Crisis Monitor: operational';
+    }
+  }, [visualTier, language]);
   const indices = TICKERS.filter(ticker => ticker.category === 'Index');
   const sectors = TICKERS.filter(ticker => ticker.category === 'Sector');
   const mainSectors = sectors.filter(ticker => ticker.group !== 'Innsatsvarer');
@@ -201,6 +219,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             { id: 'commandCenter', label: 'Command Center' },
             { id: 'lab', label: 'The Lab' },
             { id: 'factory', label: 'Factory' },
+            { id: 'crisisMonitor', label: 'Crisis Monitor' },
           ].map((tab: { id: DashboardTab; label: string }) => (
             <button
               key={tab.id}
@@ -214,7 +233,14 @@ const Sidebar: React.FC<SidebarProps> = () => {
                     : 'bg-white text-slate-500 hover:text-slate-900 border border-slate-200'
               }`}
             >
-              {tab.label}
+              {tab.id === 'crisisMonitor' ? (
+                <span className="flex items-center justify-center gap-1.5 w-full min-w-0">
+                  {supabaseReady ? <CrisisStatusDot tier={visualTier} title={crisisDotTitle} /> : null}
+                  <span className="truncate">{tab.label}</span>
+                </span>
+              ) : (
+                tab.label
+              )}
             </button>
           ))}
         </div>

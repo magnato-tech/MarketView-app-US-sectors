@@ -22,6 +22,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { PortfolioView } from './PortfolioView';
 import { FactoryDashboard } from './FactoryDashboard';
 import { LabDashboard } from './LabDashboard';
+import { CrisisMonitorPage } from './CrisisMonitorPage';
 import { TICKERS } from '../constants';
 import { getEtfHoldings, fetchETFDetailsSync } from '../services/etfService';
 
@@ -200,6 +201,16 @@ const MainDashboard: React.FC<DashboardProps> = ({
         isDarkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
       } ${panelOffset}`}>
         <FactoryDashboard />
+      </div>
+    );
+  }
+
+  if (activeTab === 'crisisMonitor') {
+    return (
+      <div className={`flex-1 p-4 lg:p-8 overflow-y-auto transition-[padding] duration-300 ${
+        isDarkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
+      } ${panelOffset}`}>
+        <CrisisMonitorPage />
       </div>
     );
   }

@@ -8,7 +8,7 @@ import { fetchMarketData } from '../services/marketDataService';
 import { RangeSummaryRow } from '../services/analysisService';
 import { AISignal } from '../types/trading';
 
-export type DashboardTab = 'dashboard' | 'commandCenter' | 'factory' | 'lab';
+export type DashboardTab = 'dashboard' | 'commandCenter' | 'factory' | 'lab' | 'crisisMonitor';
 
 export type DetailType = 'sector' | 'etf' | 'stock';
 

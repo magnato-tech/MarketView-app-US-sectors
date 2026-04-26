@@ -1,22 +1,37 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+function trimEnv(s: string | undefined): string {
+  return typeof s === 'string' ? s.trim() : '';
+}
+
+function viteEnv(key: `VITE_${string}`): string {
+  try {
+    const v = import.meta.env?.[key];
+    return trimEnv(typeof v === 'string' ? v : undefined);
+  } catch {
+    return '';
+  }
+}
+
 function readSupabaseUrl(): string {
-  return (
-    process.env.VITE_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    ''
+  return trimEnv(
+    viteEnv('VITE_SUPABASE_URL') ||
+      process.env.VITE_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      ''
   );
 }
 
 /** «Anon» / publishable key fra Supabase → API → Project API keys. */
 function readSupabaseAnonKey(): string {
-  return (
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-    ''
+  return trimEnv(
+    viteEnv('VITE_SUPABASE_ANON_KEY') ||
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
+      ''
   );
 }
 

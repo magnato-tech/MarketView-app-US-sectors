@@ -29,7 +29,15 @@ async function main() {
   }
 
   const sb = getSupabaseClient();
-  const tables = ['bots', 'evaluations', 'deployments', 'evolution_events', 'factory_state'];
+  const tables = [
+    'bots',
+    'evaluations',
+    'deployments',
+    'evolution_events',
+    'factory_state',
+    'crisis_log',
+    'engine_status',
+  ];
 
   for (const t of tables) {
     const { error } = await sb.from(t).select('*', { head: true, count: 'exact' });

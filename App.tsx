@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MainDashboard from './components/MainDashboard';
 import { DashboardProvider } from './contexts/DashboardContext';
+import { CrisisEngineProvider } from './contexts/CrisisEngineContext';
 import { TradingProvider } from './contexts/TradingContext';
 import { ETFDetailsPanel } from './components/ETFDetailsPanel';
 
@@ -18,15 +19,14 @@ const App: React.FC = () => {
   return (
     <TradingProvider>
       <DashboardProvider initialTickers={['XLK', 'XLF', 'XLE']}>
-        <div
-          ref={rootRef}
-          className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden bg-slate-950 text-slate-200 dark:bg-slate-950 dark:text-slate-200 light:bg-slate-50 light:text-slate-900 transition-colors duration-300"
-        >
-          <AppContent 
-            mainFullscreen={mainFullscreen} 
-            rootRef={rootRef} 
-          />
-        </div>
+        <CrisisEngineProvider>
+          <div
+            ref={rootRef}
+            className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden bg-slate-950 text-slate-200 dark:bg-slate-950 dark:text-slate-200 light:bg-slate-50 light:text-slate-900 transition-colors duration-300"
+          >
+            <AppContent mainFullscreen={mainFullscreen} rootRef={rootRef} />
+          </div>
+        </CrisisEngineProvider>
       </DashboardProvider>
     </TradingProvider>
   );

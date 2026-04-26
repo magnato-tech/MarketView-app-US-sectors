@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { screen, fireEvent, render } from '@testing-library/react';
 import { DashboardProvider, useDashboard } from '../../contexts/DashboardContext';
+import { CrisisEngineProvider } from '../../contexts/CrisisEngineContext';
 import { LanguageProvider } from '../../contexts/LanguageContext';
 import Sidebar from '../../components/Sidebar';
 import { MarketSummaryTable } from '../../components/dashboard/MarketSummaryTable';
@@ -45,7 +46,7 @@ const SimpleLineChart: React.FC<any> = ({ activeTickers }) => {
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <LanguageProvider initialLanguage="no">
     <DashboardProvider initialTickers={['XLK', 'XLF']}>
-      {children}
+      <CrisisEngineProvider>{children}</CrisisEngineProvider>
     </DashboardProvider>
   </LanguageProvider>
 );

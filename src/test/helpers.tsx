@@ -2,6 +2,7 @@ import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { LanguageProvider } from '../../contexts/LanguageContext';
 import { DashboardProvider } from '../../contexts/DashboardContext';
+import { CrisisEngineProvider } from '../../contexts/CrisisEngineContext';
 import { TradingProvider } from '../../contexts/TradingContext';
 import type { Language } from '../../i18n/types';
 
@@ -21,7 +22,7 @@ export const renderWithProviders = (ui: ReactElement, opts: ProviderOptions = {}
       <LanguageProvider initialLanguage={language}>
         <TradingProvider>
           <DashboardProvider initialTickers={initialTickers}>
-            {children}
+            <CrisisEngineProvider>{children}</CrisisEngineProvider>
           </DashboardProvider>
         </TradingProvider>
       </LanguageProvider>
